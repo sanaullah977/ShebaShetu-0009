@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  RECEPTION
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum QueueStatus {
+  WAITING
+  CALLED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+  NO_SHOW
+  CANCELLED
+}
+
+enum ReportType {
+  LAB
+  IMAGING
+  PRESCRIPTION
+  OTHER
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          UserRole  @default(PATIENT)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  patientProfile   PatientProfile?
+  doctorProfile    DoctorProfile?
+  receptionProfile ReceptionProfile?
+}
+
+model PatientProfile {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @unique @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  age              Int?
+  gender           String?
+  bloodGroup       String?
+  address          String?
+  emergencyContact String?
+
+  appointments Appointment[]
+  reports      Report[]
+}
+
+model DoctorProfile {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String   @unique @db.ObjectId
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization String
+  licenseNo      String?
+  consultationFee Float?
+  
+  departmentIds  String[] @db.ObjectId
+  departments    Department[] @relation(fields: [departmentIds], references: [id])
+
+  appointments   Appointment[]
+  schedules      ScheduleSlot[]
+}
+
+model ReceptionProfile {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @unique @db.ObjectId
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hospitalId String?  @db.ObjectId
+  hospital   Hospital? @relation(fields: [hospitalId], references: [id])
+}
+
+model Hospital {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  address   String
+  phone     String?
+
+  departments    Department[]
+  receptionists  ReceptionProfile[]
+  appointments   Appointment[]
+  schedules      ScheduleSlot[]
+}
+
+model Department {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  description String?
+  hospitalId  String?  @db.ObjectId
+  hospital    Hospital? @relation(fields: [hospitalId], references: [id])
+
+  doctorIds   String[] @db.ObjectId
+  doctors     DoctorProfile[] @relation(fields: [doctorIds], references: [id])
+
+  appointments Appointment[]
+}
+
+model ScheduleSlot {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  doctorId    String   @db.ObjectId
+  doctor      DoctorProfile @relation(fields: [doctorId], references: [id])
+  hospitalId  String   @db.ObjectId
+  hospital    Hospital @relation(fields: [hospitalId], references: [id])
+  startTime   DateTime
+  endTime     DateTime
+  isAvailable Boolean  @default(true)
+  isBooked    Boolean  @default(false)
+
+  appointment Appointment?
+}
+
+model Appointment {
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+  patientId       String            @db.ObjectId
+  patient         PatientProfile    @relation(fields: [patientId], references: [id])
+  doctorId        String            @db.ObjectId
+  doctor          DoctorProfile     @relation(fields: [doctorId], references: [id])
+  departmentId    String            @db.ObjectId
+  department      Department        @relation(fields: [departmentId], references: [id])
+  hospitalId      String            @db.ObjectId
+  hospital        Hospital          @relation(fields: [hospitalId], references: [id])
+  scheduleSlotId  String?           @unique @db.ObjectId
+  scheduleSlot    ScheduleSlot?     @relation(fields: [scheduleSlotId], references: [id])
+  
+  scheduledAt     DateTime
+  symptoms        String?
+  status          AppointmentStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  queueToken      QueueToken?
+  reportIds       String[] @db.ObjectId
+  reports         Report[] @relation(fields: [reportIds], references: [id])
+}
+
+model QueueToken {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  appointmentId String      @unique @db.ObjectId
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  tokenNumber   String
+  status        QueueStatus @default(WAITING)
+  position      Int
+  estimatedWait Int?
+  calledAt      DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime    @default(now())
+}
+
+model Report {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  patientId     String     @db.ObjectId
+  patient       PatientProfile @relation(fields: [patientId], references: [id])
+  appointmentIds String[] @db.ObjectId
+  appointments  Appointment[] @relation(fields: [appointmentIds], references: [id])
+  title         String
+  type          ReportType
+  fileUrl       String
+  fileName      String
+  mimeType      String
+  sizeBytes     Int
+  uploadedAt    DateTime   @default(now())
+}
