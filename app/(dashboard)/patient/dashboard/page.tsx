@@ -12,12 +12,21 @@ import {
 } from "@/lib/services/appointment-service";
 import {
   ArrowRight, Clock, CalendarDays, ChevronRight,
-  TrendingUp, Activity, Stethoscope,
+  TrendingUp, Activity, Stethoscope, FolderHeart
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { LiveQueueHero } from "@/components/patient/LiveQueueHero";
-import { SymptomCheck } from "@/components/patient/SymptomCheck";
+import dynamic from "next/dynamic";
+
+const LiveQueueHero = dynamic(() => import("@/components/patient/LiveQueueHero").then(mod => mod.LiveQueueHero), {
+  ssr: true,
+  loading: () => <div className="lg:col-span-2 h-64 bg-muted/50 animate-pulse rounded-2xl" />
+});
+
+const SymptomCheck = dynamic(() => import("@/components/patient/SymptomCheck").then(mod => mod.SymptomCheck), {
+  ssr: true,
+  loading: () => <div className="lg:col-span-2 h-48 bg-muted/50 animate-pulse rounded-2xl" />
+});
 
 export default async function PatientDashboard() {
   const session = await auth();
@@ -25,11 +34,13 @@ export default async function PatientDashboard() {
 
   const userId = (session.user as any).id;
   
-  // In a real app, we'd need the PatientProfile ID. 
-  // For this demo transition, we'll fetch it based on userId.
-  const appointments = await getUpcomingAppointments(userId);
-  const activeQueue = await getActiveQueueStatus(userId);
-  const stats = await getPatientStats(userId);
+  // Parallelize data fetching to avoid waterfalls
+  const [appointments, activeQueue, stats] = await Promise.all([
+    getUpcomingAppointments(userId),
+    getActiveQueueStatus(userId),
+    getPatientStats(userId),
+  ]);
+
   const peopleAhead = activeQueue ? await getPeopleAhead(activeQueue.id) : [];
 
   return (
@@ -56,6 +67,7 @@ export default async function PatientDashboard() {
         {/* Hero Live Queue or Empty State */}
         {activeQueue ? (
           <LiveQueueHero 
+            appointmentId={activeQueue.id}
             tokenNumber={activeQueue.queueToken?.tokenNumber}
             departmentName={activeQueue.department.name}
             doctorName={activeQueue.doctor.user.name || "Doctor"}
@@ -113,13 +125,13 @@ export default async function PatientDashboard() {
             {[
               { icon: TrendingUp, val: stats.totalVisits.toString(), label: "Visits done" },
               { icon: Stethoscope, val: stats.uniqueDoctors.toString(), label: "Doctors seen" },
-              { icon: CalendarDays, val: stats.upcomingCount.toString(), label: "Upcoming" },
+              { icon: FolderHeart, val: stats.totalReports.toString(), label: "Reports" },
               { icon: Activity, val: stats.onTimeRate, label: "On-time rate" },
             ].map(({ icon: I, val, label }) => (
-              <div key={label} className="glass rounded-xl p-3">
+              <div key={label} className="glass rounded-xl p-3 hover:bg-primary/5 transition-colors">
                 <I className="h-4 w-4 text-primary mb-1.5" />
                 <div className="text-xl font-bold">{val}</div>
-                <div className="text-[10px] text-muted-foreground">{label}</div>
+                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">{label}</div>
               </div>
             ))}
           </div>

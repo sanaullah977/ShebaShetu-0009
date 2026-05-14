@@ -12,6 +12,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "next-auth/react";
+import { useNotifications } from "@/hooks/use-notifications";
+import { formatDistanceToNow } from "date-fns";
+
+import Link from "next/link";
 
 interface TopBarProps {
   user: {
@@ -22,6 +26,8 @@ interface TopBarProps {
 }
 
 export function TopBar({ user }: TopBarProps) {
+  const { notifications, unreadCount, markRead } = useNotifications();
+
   const initials = user.name
     ?.split(" ")
     .map((n) => n[0])
@@ -36,26 +42,67 @@ export function TopBar({ user }: TopBarProps) {
         </div>
 
         {/* search — desktop only */}
-        <div className="hidden md:flex flex-1 max-w-md ml-2">
+        <form 
+          className="hidden md:flex flex-1 max-w-md ml-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const q = new FormData(e.currentTarget).get("q");
+            if (q) window.dispatchEvent(new CustomEvent("app-search", { detail: q }));
+          }}
+        >
           <div className="glass flex items-center gap-2 w-full rounded-full px-3 py-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
+              name="q"
               placeholder="Search doctors, departments, tokens…"
               className="bg-transparent outline-none text-sm flex-1 placeholder:text-muted-foreground"
             />
             <kbd className="hidden lg:inline text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">⌘K</kbd>
           </div>
-        </div>
+        </form>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <RoleBadge role={user.role as any} />
 
-          <button className="relative glass glass-hover h-9 w-9 grid place-items-center rounded-full">
-            <Bell className="h-4 w-4" />
-            <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 grid place-items-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-              3
-            </span>
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="relative glass glass-hover h-9 w-9 grid place-items-center rounded-full">
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 grid place-items-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="glass-strong w-80">
+              <DropdownMenuLabel className="flex items-center justify-between">
+                <span>Notifications</span>
+                {unreadCount > 0 && <span className="text-[10px] text-primary">{unreadCount} unread</span>}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length > 0 ? (
+                  notifications.map((n: any) => (
+                    <DropdownMenuItem 
+                      key={n.id} 
+                      className={cn(
+                        "flex flex-col items-start gap-1 p-3 cursor-pointer",
+                        !n.isRead && "bg-primary/5"
+                      )}
+                      onClick={() => markRead(n.id)}
+                    >
+                      <div className="text-xs font-bold">{n.title}</div>
+                      <div className="text-[11px] text-muted-foreground line-clamp-2">{n.message}</div>
+                      <div className="text-[9px] text-muted-foreground/60">{formatDistanceToNow(new Date(n.createdAt))} ago</div>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-xs text-muted-foreground">No notifications yet.</div>
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -69,10 +116,14 @@ export function TopBar({ user }: TopBarProps) {
                 <div className="text-xs text-muted-foreground">{user.email}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer">Profile settings</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">Help & support</DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href={`/${user.role?.toLowerCase()}/settings`}>Profile settings</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href={`/${user.role?.toLowerCase()}/support`}>Help & support</Link>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-destructive">
+              <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-destructive focus:bg-destructive/10">
                 Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>

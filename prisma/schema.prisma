@@ -57,6 +57,9 @@ model User {
   patientProfile   PatientProfile?
   doctorProfile    DoctorProfile?
   receptionProfile ReceptionProfile?
+  userPreference   UserPreference?
+  supportTickets   SupportTicket[]
+  activityLogs     ActivityLog[]
 }
 
 model PatientProfile {
@@ -133,6 +136,9 @@ model ScheduleSlot {
   isBooked    Boolean  @default(false)
 
   appointment Appointment?
+
+  @@index([doctorId, startTime, isAvailable])
+  @@index([hospitalId])
 }
 
 model Appointment {
@@ -150,6 +156,8 @@ model Appointment {
   
   scheduledAt     DateTime
   symptoms        String?
+  clinicalNotes   String?
+  prescription    String?
   status          AppointmentStatus @default(PENDING)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -157,6 +165,11 @@ model Appointment {
   queueToken      QueueToken?
   reportIds       String[] @db.ObjectId
   reports         Report[] @relation(fields: [reportIds], references: [id])
+
+  @@index([patientId, status])
+  @@index([doctorId, scheduledAt])
+  @@index([departmentId])
+  @@index([hospitalId])
 }
 
 model QueueToken {
@@ -170,6 +183,8 @@ model QueueToken {
   calledAt      DateTime?
   completedAt   DateTime?
   createdAt     DateTime    @default(now())
+
+  @@index([status, position])
 }
 
 model Report {
@@ -185,4 +200,72 @@ model Report {
   mimeType      String
   sizeBytes     Int
   uploadedAt    DateTime   @default(now())
+}
+
+enum NotificationType {
+  APPOINTMENT
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  QUEUE_CALLED
+  NEW_MESSAGE
+  SYSTEM_ALERT
+}
+
+model Notification {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String           @db.ObjectId
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+}
+
+model ActivityLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  details   String?
+  entityId  String?  @db.ObjectId
+  entityType String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model UserPreference {
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String  @unique @db.ObjectId
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailAlerts     Boolean @default(true)
+  queueUpdates    Boolean @default(true)
+  marketingEmails Boolean @default(false)
+  theme           String  @default("dark")
+}
+
+model SupportTicket {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  subject     String
+  message     String
+  status      String   @default("OPEN") // OPEN, IN_PROGRESS, CLOSED
+  priority    String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+model TwoFactorToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
 }

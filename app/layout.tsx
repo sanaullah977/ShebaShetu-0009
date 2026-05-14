@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "@/components/theme-provider";
-import { QueryProvider } from "@/components/query-provider";
+import { Toaster } from "@/components/ui/sonner";
+import { Providers } from "./providers";
+import { SearchHandler } from "@/components/SearchHandler";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ShebaSetu | Smart Outpatient Management",
-  description: "AI-supported hospital appointment, queue, and role-based healthcare management platform.",
+  title: "ShebaSetu · Healthcare Simplified",
+  description: " Dhaka's premium AI-powered patient queue & hospital management system.",
 };
 
 export default function RootLayout({
@@ -21,21 +19,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <QueryProvider>
-            <TooltipProvider>
-              {children}
-              <Toaster />
-              <Sonner />
-            </TooltipProvider>
-          </QueryProvider>
-        </ThemeProvider>
+      <body className={`${inter.className} bg-background antialiased selection:bg-primary/20`}>
+        <Providers>
+          <SearchHandler />
+          {children}
+          <Toaster position="top-center" richColors />
+        </Providers>
       </body>
     </html>
   );

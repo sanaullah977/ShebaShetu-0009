@@ -33,15 +33,31 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    formData.append("role", selected); // Ensure role is sent
 
     try {
+      if (mode === "register") {
+        const { register } = await import("@/app/actions/auth");
+        const result = await register(formData);
+        
+        if (!result.success) {
+          toast.error(result.error || "Registration failed");
+          setLoading(false);
+          return;
+        }
+        
+        toast.success("Account created! Signing you in...");
+      }
+
+      // Both login and post-register sign-in
+      const email = formData.get("email") as string;
+      const password = formData.get("password") as string;
+
       const result = await signIn("credentials", {
         email,
         password,
@@ -49,9 +65,9 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        toast.error("Invalid credentials. Please try again.");
+        toast.error("Authentication failed. Please check your credentials.");
       } else {
-        toast.success("Welcome back!");
+        toast.success(mode === "login" ? "Welcome back!" : "Account ready!");
         router.push("/");
       }
     } catch (error) {
@@ -147,18 +163,18 @@ export default function LoginPage() {
           </div>
 
           <GlassCard variant="strong">
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleAuth} className="space-y-4">
               {mode === "register" && (
                 <div className="space-y-1.5">
                   <Label htmlFor="name">Full name</Label>
-                  <Input id="name" name="name" placeholder="Nadia Ahmed" defaultValue="Nadia Ahmed" required />
+                  <Input id="name" name="name" placeholder="Enter your full name" required />
                 </div>
               )}
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email or phone</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="email" name="email" className="pl-9" placeholder="you@example.com" defaultValue="nadia@example.com" required />
+                  <Input id="email" name="email" className="pl-9" placeholder="you@example.com" required />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -172,7 +188,7 @@ export default function LoginPage() {
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="password" name="password" type="password" className="pl-9" placeholder="••••••••" defaultValue="demo1234" required />
+                  <Input id="password" name="password" type="password" className="pl-9" placeholder="••••••••" required />
                 </div>
               </div>
 

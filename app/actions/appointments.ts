@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { AppointmentStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { format } from "date-fns";
 
 const bookingSchema = z.object({
   doctorId: z.string().min(1, "Please select a doctor"),
@@ -14,47 +15,100 @@ const bookingSchema = z.object({
 });
 
 export async function bookAppointment(formData: FormData) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
-
-  const userId = (session.user as any).id;
-  
-  // Fetch patient profile
-  const patient = await prisma.patientProfile.findUnique({
-    where: { userId }
-  });
-
-  if (!patient) throw new Error("Patient profile not found");
-
-  const data = bookingSchema.parse({
-    doctorId: formData.get("doctorId"),
-    departmentId: formData.get("departmentId"),
-    scheduledAt: formData.get("scheduledAt"),
-    symptoms: formData.get("symptoms"),
-  });
-
-  // Fetch a default hospital if none specified (for MVP)
-  const hospital = await prisma.hospital.findFirst() || await prisma.hospital.create({
-    data: {
-      name: "Main Hospital",
-      address: "Dhaka, Bangladesh",
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: "Unauthorized" };
     }
-  });
 
-  const appointment = await prisma.appointment.create({
-    data: {
-      patientId: patient.id,
-      doctorId: data.doctorId,
-      departmentId: data.departmentId,
-      hospitalId: hospital.id,
-      scheduledAt: new Date(data.scheduledAt),
-      symptoms: data.symptoms,
-      status: AppointmentStatus.PENDING,
+    const userId = (session.user as any).id;
+    
+    // Fetch and verify patient profile
+    const patient = await prisma.patientProfile.findUnique({
+      where: { userId }
+    });
+
+    if (!patient) {
+      return { success: false, error: "Only registered patients can book appointments." };
     }
-  });
 
-  revalidatePath("/patient/dashboard");
-  revalidatePath("/patient/appointments");
+    // Safe validation
+    const rawData = {
+      doctorId: formData.get("doctorId"),
+      departmentId: formData.get("departmentId"),
+      scheduledAt: formData.get("scheduledAt"),
+      symptoms: formData.get("symptoms"),
+    };
 
-  return { success: true, appointmentId: appointment.id };
+    const validated = bookingSchema.safeParse(rawData);
+
+    if (!validated.success) {
+      return { 
+        success: false, 
+        error: "Invalid data", 
+        details: validated.error.flatten().fieldErrors 
+      };
+    }
+
+    const { doctorId, departmentId, scheduledAt, symptoms } = validated.data;
+
+    // Concurrency Check: Ensure slot isn't already taken or doctor is available
+    // For now, we'll check if the doctor has any other appointment at exactly the same time
+    const existingAppointment = await prisma.appointment.findFirst({
+      where: {
+        doctorId,
+        scheduledAt: new Date(scheduledAt),
+        status: { not: AppointmentStatus.CANCELLED }
+      }
+    });
+
+    if (existingAppointment) {
+      return { success: false, error: "This time slot is already booked. Please choose another time." };
+    }
+
+    // Fetch a default hospital if none specified
+    const hospital = await prisma.hospital.findFirst();
+    if (!hospital) {
+      return { success: false, error: "System configuration error: No hospital found." };
+    }
+
+    const appointment = await prisma.appointment.create({
+      data: {
+        patientId: patient.id,
+        doctorId,
+        departmentId,
+        hospitalId: hospital.id,
+        scheduledAt: new Date(scheduledAt),
+        symptoms,
+        status: AppointmentStatus.PENDING,
+      }
+    });
+
+    // Notify Doctor
+    const doctor = await prisma.doctorProfile.findUnique({
+      where: { id: doctorId },
+      select: { userId: true }
+    });
+
+    if (doctor) {
+      await prisma.notification.create({
+        data: {
+          userId: doctor.userId,
+          title: "New Appointment Request",
+          message: `A new patient (${session.user.name}) has scheduled an appointment for ${format(new Date(scheduledAt), "p")}.`,
+          type: "APPOINTMENT",
+          link: "/doctor/dashboard"
+        }
+      });
+    }
+
+    revalidatePath("/doctor/dashboard");
+    revalidatePath("/patient/dashboard");
+    revalidatePath("/patient/appointments");
+
+    return { success: true, appointmentId: appointment.id };
+  } catch (error) {
+    console.error("[BOOK_APPOINTMENT_ERROR]", error);
+    return { success: false, error: "An unexpected error occurred. Please try again later." };
+  }
 }

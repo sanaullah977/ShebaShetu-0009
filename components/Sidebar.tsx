@@ -84,15 +84,22 @@ export function Sidebar({ role }: SidebarProps) {
         <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
           Reach our 24/7 hospital coordination desk for any visit.
         </p>
-        <button className="w-full rounded-lg bg-gradient-emerald text-primary-foreground text-xs font-semibold py-2 shadow-glow">
-          Contact support
-        </button>
+        <Link 
+          href={`/${role.toLowerCase()}/support`}
+          className="w-full block"
+        >
+          <button className="w-full rounded-lg bg-gradient-emerald text-primary-foreground text-xs font-semibold py-2 shadow-glow">
+            Contact support
+          </button>
+        </Link>
       </div>
 
       <div className="px-3 py-3 border-t border-border/60 flex items-center gap-2 text-[11px] text-muted-foreground">
         <LifeBuoy className="h-3.5 w-3.5" />
         <span>v1.0 · Next.js migration</span>
-        <Settings className="ml-auto h-3.5 w-3.5 hover:text-foreground cursor-pointer" />
+        <Link href={`/${role.toLowerCase()}/settings`} className="ml-auto">
+          <Settings className="h-3.5 w-3.5 hover:text-foreground cursor-pointer" />
+        </Link>
       </div>
     </aside>
   );

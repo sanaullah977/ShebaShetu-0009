@@ -7,60 +7,100 @@ export interface SuggestionResult {
 
 const RULES = [
   { 
-    keywords: ['chest pain', 'heart', 'breathing', 'palpitation', 'dizzy'], 
+    keywords: ['chest pain', 'heart', 'breathing', 'palpitation', 'dizzy', 'pressure', 'high bp', 'cardio'], 
     department: 'Cardiology', 
-    warning: 'If you are experiencing severe chest pain, please seek emergency care immediately.' 
+    reason: 'Your symptoms suggest potential cardiovascular issues that require specialist evaluation.',
+    warning: 'If you are experiencing severe chest pain, shortness of breath, or numbness, please seek emergency care (ER) immediately.' 
   },
   { 
-    keywords: ['rash', 'skin', 'itching', 'spot', 'allergy'], 
-    department: 'Dermatology' 
+    keywords: ['rash', 'skin', 'itching', 'spot', 'allergy', 'acne', 'burn', 'eczema', 'dermatology'], 
+    department: 'Dermatology',
+    reason: 'Our dermatologists specialize in skin, hair, and nail conditions related to your description.'
   },
   { 
-    keywords: ['fever', 'cough', 'cold', 'flu', 'weakness', 'body ache'], 
-    department: 'General Medicine' 
+    keywords: ['fever', 'cough', 'cold', 'flu', 'weakness', 'body ache', 'headache', 'infection', 'general'], 
+    department: 'General Medicine',
+    reason: 'A general practitioner can provide the first line of diagnosis and treatment for these systemic symptoms.'
   },
   { 
-    keywords: ['pregnancy', 'period', 'menstrual', 'gyne', 'obstetrics'], 
-    department: 'Gynecology' 
+    keywords: ['pregnancy', 'period', 'menstrual', 'gyne', 'obstetrics', 'women health', 'pcos'], 
+    department: 'Gynecology',
+    reason: 'These symptoms are best addressed by our specialized women\'s health and obstetrics department.'
   },
   { 
-    keywords: ['child', 'baby', 'infant', 'pediatric', 'vaccination'], 
-    department: 'Pediatrics' 
+    keywords: ['child', 'baby', 'infant', 'pediatric', 'vaccination', 'kid', 'growth'], 
+    department: 'Pediatrics',
+    reason: 'Our pediatricians are experts in child development and pediatric illnesses.'
   },
   { 
-    keywords: ['eye', 'vision', 'blurred', 'redness', 'ophthalmology'], 
-    department: 'Ophthalmology' 
+    keywords: ['eye', 'vision', 'blurred', 'redness', 'ophthalmology', 'glasses', 'sight'], 
+    department: 'Ophthalmology',
+    reason: 'An eye specialist is needed to evaluate your vision and ocular health.'
   },
   { 
-    keywords: ['tooth', 'gum', 'dental', 'braces', 'extraction'], 
-    department: 'Dental' 
+    keywords: ['tooth', 'gum', 'dental', 'braces', 'extraction', 'cavity', 'oral'], 
+    department: 'Dental',
+    reason: 'For oral and dental concerns, our specialized dental clinic is the appropriate choice.'
   },
   {
-    keywords: ['bone', 'joint', 'fracture', 'knee', 'back pain'],
-    department: 'Orthopedics'
+    keywords: ['bone', 'joint', 'fracture', 'knee', 'back pain', 'muscle', 'sprain', 'ortho'],
+    department: 'Orthopedics',
+    reason: 'Musculoskeletal concerns should be evaluated by our orthopedic surgeons and therapists.'
   },
   {
-    keywords: ['ear', 'nose', 'throat', 'sinus', 'ent'],
-    department: 'ENT'
+    keywords: ['ear', 'nose', 'throat', 'sinus', 'ent', 'hearing', 'swallowing'],
+    department: 'ENT',
+    reason: 'These symptoms relate to the ear, nose, or throat, requiring an ENT specialist.'
   },
   {
-    keywords: ['brain', 'nerve', 'seizure', 'paralysis', 'neurology'],
-    department: 'Neurology'
+    keywords: ['brain', 'nerve', 'seizure', 'paralysis', 'neurology', 'memory', 'stroke'],
+    department: 'Neurology',
+    reason: 'Neurological symptoms require advanced diagnostic tools and specialized expertise.'
+  },
+  {
+    keywords: ['stomach', 'digestion', 'acid', 'bloating', 'gas', 'constipation', 'diarrhea', 'gastro'],
+    department: 'Gastroenterology',
+    reason: 'Digestive and gastric issues are best managed by our gastroenterology specialists.'
+  },
+  {
+    keywords: ['kidney', 'urine', 'bladder', 'urology', 'prostate', 'burning'],
+    department: 'Urology',
+    reason: 'Urological and renal concerns require specific evaluation from our urology department.'
   }
 ];
 
-const DISCLAIMER = "This tool only suggests a possible department based on symptoms. It does not provide diagnosis, treatment, medicine, or emergency advice. Please consult a qualified doctor.";
+const DISCLAIMER = "This tool uses pattern matching to suggest a department based on your input. It is NOT a medical diagnosis and should NOT be used as a substitute for professional medical advice, diagnosis, or treatment. Always consult with a qualified physician.";
 
 export function analyzeSymptoms(symptoms: string): SuggestionResult {
-  const text = symptoms.toLowerCase();
-  const match = RULES.find((rule) => 
-    rule.keywords.some((keyword) => text.includes(keyword))
-  );
+  const text = symptoms.toLowerCase().trim();
+  
+  if (text.length < 5) {
+    return {
+      department: 'General Medicine',
+      confidence: 0.1,
+      reason: 'Please provide more details for a better suggestion.',
+      disclaimer: DISCLAIMER,
+    };
+  }
+
+  // Find the best match by counting keyword hits
+  let bestMatch = null;
+  let maxHits = 0;
+
+  for (const rule of RULES) {
+    const hits = rule.keywords.reduce((count, kw) => count + (text.includes(kw) ? 1 : 0), 0);
+    if (hits > maxHits) {
+      maxHits = hits;
+      bestMatch = rule;
+    }
+  }
 
   return {
-    department: match?.department ?? 'General Medicine',
-    confidence: match ? 0.75 : 0.45,
-    warning: match?.warning,
+    department: bestMatch?.department ?? 'General Medicine',
+    confidence: bestMatch ? Math.min(0.9, 0.4 + (maxHits * 0.1)) : 0.4,
+    reason: bestMatch?.reason ?? 'Your symptoms appear general in nature. A general practitioner is the best place to start.',
+    warning: bestMatch?.warning,
     disclaimer: DISCLAIMER,
   };
 }
+

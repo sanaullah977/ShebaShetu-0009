@@ -1,31 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import { z } from "zod";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db";
 
 export const authConfig = {
-  providers: [
-    Credentials({
-      async authorize(credentials) {
-        const parsedCredentials = z
-          .object({ email: z.string().email(), password: z.string().min(6) })
-          .safeParse(credentials);
-
-        if (parsedCredentials.success) {
-          const { email, password } = parsedCredentials.data;
-          const user = await prisma.user.findUnique({ where: { email } });
-          if (!user || !user.passwordHash) return null;
-
-          const passwordsMatch = await bcrypt.compare(password, user.passwordHash);
-
-          if (passwordsMatch) return user;
-        }
-
-        return null;
-      },
-    }),
-  ],
+  providers: [], // Providers added in auth.ts to avoid Edge issues with Prisma
   callbacks: {
     async jwt({ token, user }) {
       if (user) {

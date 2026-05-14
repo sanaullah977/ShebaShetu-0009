@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useQueueStatus } from "@/hooks/use-queue";
 import { GlassCard } from "@/components/GlassCard";
 import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
-import { Activity, MapPin } from "lucide-react";
+import { Activity, MapPin, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface LiveQueueHeroProps {
+  appointmentId: string;
   tokenNumber?: string;
   departmentName?: string;
   doctorName?: string;
@@ -16,24 +17,25 @@ interface LiveQueueHeroProps {
 }
 
 export function LiveQueueHero({
-  tokenNumber = "N/A",
-  departmentName = "General",
-  doctorName = "Assigning...",
-  roomNumber = "TBD",
+  appointmentId,
+  tokenNumber: initialToken = "N/A",
+  departmentName: initialDept = "General",
+  doctorName: initialDoc = "Assigning...",
+  roomNumber = "204",
   initialAheadCount = 0
 }: LiveQueueHeroProps) {
   const router = useRouter();
-  const [progress, setProgress] = useState(62);
-  const [eta, setEta] = useState(18);
-  const [aheadCount, setAheadCount] = useState(initialAheadCount);
+  const { data, isLoading } = useQueueStatus(appointmentId);
 
-  useEffect(() => {
-    const t = setInterval(() => {
-      setProgress((p) => (p >= 96 ? 60 : p + 0.1));
-      setEta((e) => (e <= 5 ? 20 : e - 0.05));
-    }, 5000);
-    return () => clearInterval(t);
-  }, []);
+  // Fallback to server-provided initial data while loading or if error
+  const token = data?.tokenNumber ?? initialToken;
+  const dept = data?.departmentName ?? initialDept;
+  const doc = data?.doctorName ?? initialDoc;
+  const aheadCount = data?.aheadCount ?? initialAheadCount;
+  const eta = data?.estimatedWait ?? (initialAheadCount * 12);
+  
+  // Visual progress calculation (simple heuristic)
+  const progress = Math.max(10, 100 - (aheadCount * 10));
 
   return (
     <GlassCard variant="strong" className="lg:col-span-2 relative overflow-hidden p-0">
@@ -57,22 +59,28 @@ export function LiveQueueHero({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Your token</div>
-            <div className="text-3xl font-bold text-gradient-emerald mt-0.5">{tokenNumber}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">{departmentName}</div>
+            <div className="text-3xl font-bold text-gradient-emerald mt-0.5">{token}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{dept}</div>
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <StatusPill status="live" />
-            <span className="text-[11px] text-muted-foreground">Live connection active</span>
+            {isLoading ? (
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Updating...
+              </span>
+            ) : (
+              <span className="text-[11px] text-muted-foreground">Live connection active</span>
+            )}
           </div>
           <div>
             <div className="text-3xl sm:text-4xl font-bold">
               You are <span className="text-gradient-emerald">#{aheadCount}</span> in queue
             </div>
             <div className="text-sm text-muted-foreground mt-1">
-              Estimated wait <span className="text-foreground font-semibold">~{Math.round(eta)} min</span> · {doctorName} · Room {roomNumber}
+              Estimated wait <span className="text-foreground font-semibold">~{Math.round(eta)} min</span> · {doc} · Room {roomNumber}
             </div>
           </div>
 
