@@ -1,4 +1,8 @@
 {
-  "/(dashboard)/patient/booking/page": "app/(dashboard)/patient/booking/page.js",
-  "/(dashboard)/patient/dashboard/page": "app/(dashboard)/patient/dashboard/page.js"
+  "/api/notifications/route": "app/api/notifications/route.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(dashboard)/doctor/settings/page": "app/(dashboard)/doctor/settings/page.js",
+  "/(dashboard)/doctor/schedule/page": "app/(dashboard)/doctor/schedule/page.js",
+  "/(dashboard)/doctor/dashboard/page": "app/(dashboard)/doctor/dashboard/page.js",
+  "/(dashboard)/doctor/support/page": "app/(dashboard)/doctor/support/page.js"
 }

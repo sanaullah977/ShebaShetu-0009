@@ -64,8 +64,16 @@ export default function LoginPage() {
         redirect: false,
       });
 
+      console.log("[LOGIN_CLIENT_RESULT]", result);
+
       if (result?.error) {
-        toast.error("Authentication failed. Please check your credentials.");
+        if (result.error === "CredentialsSignin") {
+          toast.error("Invalid email or password.");
+        } else {
+          toast.error("Authentication failed. Please check your credentials.");
+        }
+      } else if (!result?.ok) {
+        toast.error("Something went wrong during sign in.");
       } else {
         toast.success(mode === "login" ? "Welcome back!" : "Account ready!");
         router.push("/");
