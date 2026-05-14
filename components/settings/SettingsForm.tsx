@@ -24,6 +24,14 @@ interface SettingsFormProps {
     doctorProfile?: {
       specialization: string;
       consultationFee: number | null;
+      roomNumber: string | null;
+    } | null;
+    patientProfile?: {
+      age: number | null;
+      gender: string | null;
+      bloodGroup: string | null;
+      address: string | null;
+      emergencyContact: string | null;
     } | null;
   };
   preferences: {
@@ -70,12 +78,20 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
       name: formData.get("name") as string,
       image: image,
       specialization: formData.get("specialization") as string,
-      consultationFee: Number(formData.get("consultationFee")),
+      consultationFee: formData.get("consultationFee") ? Number(formData.get("consultationFee")) : undefined,
+      roomNumber: formData.get("roomNumber") as string,
+      age: formData.get("age") ? Number(formData.get("age")) : undefined,
+      gender: formData.get("gender") as string,
+      bloodGroup: formData.get("bloodGroup") as string,
+      address: formData.get("address") as string,
+      emergencyContact: formData.get("emergencyContact") as string,
     });
     setLoading(false);
     if (res.success) toast.success("Profile updated");
     else toast.error(res.error);
   };
+
+  const role = user.doctorProfile ? "Doctor" : user.patientProfile ? "Patient" : "Receptionist";
 
   return (
     <div className="grid gap-8">
@@ -99,8 +115,13 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
               <div className="text-2xl font-black tracking-tight">{user.name}</div>
               <div className="text-sm text-muted-foreground font-medium">{user.email}</div>
               <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black uppercase tracking-widest px-2 py-0.5">
-                  {user.doctorProfile ? "Doctor" : "Receptionist"} Profile
+                <Badge variant="outline" className={cn(
+                  "border-primary/20 text-[10px] font-black uppercase tracking-widest px-2 py-0.5",
+                  role === "Doctor" ? "bg-primary/10 text-primary" :
+                  role === "Patient" ? "bg-emerald-500/10 text-emerald-600" :
+                  "bg-blue-500/10 text-blue-600"
+                )}>
+                  {role} Profile
                 </Badge>
               </div>
             </div>
@@ -115,6 +136,7 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
                 <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email Address</Label>
                 <Input className="h-12 rounded-xl bg-secondary/30 border-border/20 opacity-60 cursor-not-allowed" defaultValue={user.email} disabled />
              </div>
+
              {user.doctorProfile && (
                <>
                  <div className="space-y-2">
@@ -122,8 +144,37 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
                     <Input name="specialization" className="h-12 rounded-xl bg-background/50 border-border/40" defaultValue={user.doctorProfile.specialization} required />
                  </div>
                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Consultation Fee (BDT)</Label>
+                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Consultation Fee (৳)</Label>
                     <Input name="consultationFee" type="number" min="0" className="h-12 rounded-xl bg-background/50 border-border/40" defaultValue={user.doctorProfile.consultationFee || 0} required />
+                 </div>
+                 <div className="space-y-2">
+                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Room Number</Label>
+                    <Input name="roomNumber" className="h-12 rounded-xl bg-background/50 border-border/40" defaultValue={user.doctorProfile.roomNumber || ""} />
+                 </div>
+               </>
+             )}
+
+             {user.patientProfile && (
+               <>
+                 <div className="space-y-2">
+                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Age</Label>
+                    <Input name="age" type="number" min="0" className="h-12 rounded-xl bg-background/50 border-border/40" defaultValue={user.patientProfile.age || ""} />
+                 </div>
+                 <div className="space-y-2">
+                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Gender</Label>
+                    <Input name="gender" className="h-12 rounded-xl bg-background/50 border-border/40" defaultValue={user.patientProfile.gender || ""} />
+                 </div>
+                 <div className="space-y-2">
+                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Blood Group</Label>
+                    <Input name="bloodGroup" className="h-12 rounded-xl bg-background/50 border-border/40" defaultValue={user.patientProfile.bloodGroup || ""} />
+                 </div>
+                 <div className="space-y-2">
+                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Emergency Contact</Label>
+                    <Input name="emergencyContact" className="h-12 rounded-xl bg-background/50 border-border/40" defaultValue={user.patientProfile.emergencyContact || ""} />
+                 </div>
+                 <div className="space-y-2 sm:col-span-2">
+                    <Label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Address</Label>
+                    <Input name="address" className="h-12 rounded-xl bg-background/50 border-border/40" defaultValue={user.patientProfile.address || ""} />
                  </div>
                </>
              )}

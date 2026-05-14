@@ -51,19 +51,29 @@ export async function bookAppointment(formData: FormData) {
     }
 
     const { doctorId, departmentId, scheduledAt, symptoms } = validated.data;
+    const slotId = formData.get("slotId") as string;
 
-    // Concurrency Check: Ensure slot isn't already taken or doctor is available
-    // For now, we'll check if the doctor has any other appointment at exactly the same time
-    const existingAppointment = await prisma.appointment.findFirst({
-      where: {
-        doctorId,
-        scheduledAt: new Date(scheduledAt),
-        status: { not: AppointmentStatus.CANCELLED }
+    // Concurrency Check: Ensure slot isn't already taken
+    if (slotId) {
+      const slot = await prisma.scheduleSlot.findUnique({
+        where: { id: slotId }
+      });
+      if (!slot || slot.isBooked || !slot.isAvailable) {
+        return { success: false, error: "This time slot is no longer available." };
       }
-    });
+    } else {
+      // Fallback for non-slot based booking (legacy or emergency)
+      const existingAppointment = await prisma.appointment.findFirst({
+        where: {
+          doctorId,
+          scheduledAt: new Date(scheduledAt),
+          status: { not: AppointmentStatus.CANCELLED }
+        }
+      });
 
-    if (existingAppointment) {
-      return { success: false, error: "This time slot is already booked. Please choose another time." };
+      if (existingAppointment) {
+        return { success: false, error: "This time slot is already booked. Please choose another time." };
+      }
     }
 
     // Fetch a default hospital if none specified
@@ -79,10 +89,19 @@ export async function bookAppointment(formData: FormData) {
         departmentId,
         hospitalId: hospital.id,
         scheduledAt: new Date(scheduledAt),
+        scheduleSlotId: slotId || null,
         symptoms,
         status: AppointmentStatus.PENDING,
       }
     });
+
+    // Mark slot as booked
+    if (slotId) {
+      await prisma.scheduleSlot.update({
+        where: { id: slotId },
+        data: { isBooked: true }
+      });
+    }
 
     // Notify Doctor
     const doctor = await prisma.doctorProfile.findUnique({
@@ -110,5 +129,53 @@ export async function bookAppointment(formData: FormData) {
   } catch (error) {
     console.error("[BOOK_APPOINTMENT_ERROR]", error);
     return { success: false, error: "An unexpected error occurred. Please try again later." };
+  }
+}
+
+export async function cancelAppointment(appointmentId: string) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const userId = (session.user as any).id;
+    const patient = await prisma.patientProfile.findUnique({ where: { userId } });
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { scheduleSlot: true }
+    });
+
+    if (!appointment) {
+      return { success: false, error: "Appointment not found" };
+    }
+
+    // Security: Only patient can cancel their own appointment
+    if (appointment.patientId !== patient?.id && (session.user as any).role === 'PATIENT') {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: AppointmentStatus.CANCELLED }
+    });
+
+    // Release the slot if it was a scheduled slot
+    if (appointment.scheduleSlotId) {
+      await prisma.scheduleSlot.update({
+        where: { id: appointment.scheduleSlotId },
+        data: { isBooked: false }
+      });
+    }
+
+    revalidatePath("/patient/appointments");
+    revalidatePath("/patient/dashboard");
+    revalidatePath("/doctor/dashboard");
+
+    return { success: true };
+  } catch (error) {
+    console.error("[CANCEL_APPOINTMENT_ERROR]", error);
+    return { success: false, error: "Failed to cancel appointment" };
   }
 }

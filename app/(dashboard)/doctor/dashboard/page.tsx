@@ -26,7 +26,7 @@ export default async function DoctorDashboard() {
     getDoctorAvailability(userId)
   ]);
 
-  let patientHistory = [];
+  let patientHistory: any[] = [];
   if (activeAppointment) {
     const { getPatientHistory } = await import("@/lib/services/doctor-service");
     patientHistory = await getPatientHistory(activeAppointment.patientId);

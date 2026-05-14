@@ -2,10 +2,11 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { GlassCard } from "@/components/GlassCard";
-import { LifeBuoy, Send, MessageSquare, History, Phone, Mail, MapPin } from "lucide-react";
+import { LifeBuoy, Send, MessageSquare, History, Phone, Mail, MapPin, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createSupportTicket } from "@/app/actions/settings";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default async function PatientSupportPage() {
   const session = await auth();

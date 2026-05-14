@@ -35,7 +35,7 @@ export function CheckInModal({ open, onOpenChange, pendingAppointments }: CheckI
     try {
       const res = await checkInPatient(id);
       if (res.success) {
-        toast.success(`Checked in! Token: ${res.tokenNumber}`);
+        toast.success(`Checked in! Token: ${res.token?.tokenNumber}`);
         onOpenChange(false);
       } else {
         toast.error(res.error || "Failed to check in");

@@ -5,12 +5,21 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { uploadToImgBB } from "@/lib/upload";
 
 const profileSchema = z.object({
   name: z.string().min(2),
   image: z.string().optional(),
+  // Doctor fields
   specialization: z.string().optional(),
   consultationFee: z.number().optional(),
+  roomNumber: z.string().optional(),
+  // Patient fields
+  age: z.number().optional(),
+  gender: z.string().optional(),
+  bloodGroup: z.string().optional(),
+  address: z.string().optional(),
+  emergencyContact: z.string().optional(),
 });
 
 export async function updateProfile(data: z.infer<typeof profileSchema>) {
@@ -20,33 +29,55 @@ export async function updateProfile(data: z.infer<typeof profileSchema>) {
   const userId = (session.user as any).id;
 
   try {
+    let imageUrl = data.image;
+    
+    // If image is base64, upload to ImgBB
+    if (data.image && data.image.startsWith("data:image")) {
+      const uploadedUrl = await uploadToImgBB(data.image);
+      if (uploadedUrl) {
+        imageUrl = uploadedUrl;
+      }
+    }
+
     // Update base user
     await prisma.user.update({
       where: { id: userId },
       data: {
         name: data.name,
-        image: data.image,
+        image: imageUrl,
       }
     });
 
     // Update doctor profile if it exists
-    if (data.specialization !== undefined || data.consultationFee !== undefined) {
-      const doctor = await prisma.doctorProfile.findUnique({
-        where: { userId }
+    const doctor = await prisma.doctorProfile.findUnique({ where: { userId } });
+    if (doctor) {
+      await prisma.doctorProfile.update({
+        where: { userId },
+        data: {
+          specialization: data.specialization || doctor.specialization,
+          consultationFee: data.consultationFee ?? doctor.consultationFee,
+          roomNumber: data.roomNumber || doctor.roomNumber,
+        }
       });
+    }
 
-      if (doctor) {
-        await prisma.doctorProfile.update({
-          where: { userId },
-          data: {
-            specialization: data.specialization || doctor.specialization,
-            consultationFee: data.consultationFee ?? doctor.consultationFee,
-          }
-        });
-      }
+    // Update patient profile if it exists
+    const patient = await prisma.patientProfile.findUnique({ where: { userId } });
+    if (patient) {
+      await prisma.patientProfile.update({
+        where: { userId },
+        data: {
+          age: data.age ?? patient.age,
+          gender: data.gender || patient.gender,
+          bloodGroup: data.bloodGroup || patient.bloodGroup,
+          address: data.address || patient.address,
+          emergencyContact: data.emergencyContact || patient.emergencyContact,
+        }
+      });
     }
     
     revalidatePath("/doctor/settings");
+    revalidatePath("/patient/settings");
     revalidatePath("/reception/settings");
     return { success: true };
   } catch (error) {

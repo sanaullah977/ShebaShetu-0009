@@ -124,7 +124,7 @@ export async function getActiveAppointment(userId: string) {
       patient: {
         include: {
           user: {
-            select: { name: true, image: true }
+            select: { name: true, image: true, email: true }
           }
         }
       },
