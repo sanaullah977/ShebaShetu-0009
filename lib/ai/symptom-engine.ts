@@ -1,6 +1,7 @@
 export interface SuggestionResult {
   department: string;
   confidence: number;
+  reason: string;
   warning?: string;
   disclaimer: string;
 }

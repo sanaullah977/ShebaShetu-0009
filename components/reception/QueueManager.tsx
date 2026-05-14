@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { 
   Users2, Search, ArrowRightLeft, 
   MoreVertical, ChevronUp, ChevronDown, 
-  Trash2, Filter 
+  Trash2, Filter, User, BellRing, UserMinus, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/StatusPill";
@@ -13,9 +13,11 @@ import {
   DropdownMenu, DropdownMenuContent, 
   DropdownMenuItem, DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { updateQueueStatus } from "@/app/actions/reception";
+import { updateQueueStatus, moveQueuePosition } from "@/app/actions/reception";
 import { toast } from "sonner";
 import { QueueStatus } from "@prisma/client";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface QueueManagerProps {
   queue: any[];
@@ -24,6 +26,8 @@ interface QueueManagerProps {
 export function QueueManager({ queue }: QueueManagerProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [activeAction, setActiveAction] = useState<string | null>(null);
 
   const filtered = queue.filter(apt => {
     const s = search.toLowerCase();
@@ -39,9 +43,32 @@ export function QueueManager({ queue }: QueueManagerProps) {
   });
 
   const handleStatusUpdate = async (tokenId: string, status: QueueStatus) => {
-    const res = await updateQueueStatus(tokenId, status);
-    if (res.success) toast.success(`Status updated to ${status}`);
-    else toast.error(res.error || "Failed to update status");
+    setActiveAction(`${tokenId}-${status}`);
+    startTransition(async () => {
+      const res = await updateQueueStatus(tokenId, status);
+      if (res.success) toast.success(`Status updated to ${status.replace('_', ' ')}`);
+      else toast.error(res.error || "Failed to update status");
+      setActiveAction(null);
+    });
+  };
+
+  const handleMove = async (tokenId: string, direction: "UP" | "DOWN") => {
+    setActiveAction(`${tokenId}-${direction}`);
+    startTransition(async () => {
+      const res = await moveQueuePosition(tokenId, direction);
+      if (res.success) toast.success(`Patient moved ${direction.toLowerCase()}`);
+      else toast.error(res.error || "Failed to move patient");
+      setActiveAction(null);
+    });
+  };
+
+  const handleCallNext = () => {
+    const nextPatient = filtered.find(apt => apt.queueToken?.status === "WAITING");
+    if (nextPatient) {
+      handleStatusUpdate(nextPatient.queueToken.id, "CALLED");
+    } else {
+      toast.info("No more patients waiting in the filtered list.");
+    }
   };
 
   return (
@@ -58,6 +85,16 @@ export function QueueManager({ queue }: QueueManagerProps) {
         </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
           <Button 
+            variant="outline" 
+            size="sm" 
+            className="rounded-xl text-xs h-9 px-4 font-bold bg-primary/5 border-primary/20 text-primary hover:bg-primary/10"
+            onClick={handleCallNext}
+            disabled={isPending}
+          >
+            <BellRing className="h-4 w-4 mr-2" /> Call Next
+          </Button>
+          <div className="h-6 w-px bg-border/40 mx-1" />
+          <Button 
             variant={statusFilter === null ? "default" : "outline"} 
             size="sm" 
             className="rounded-xl text-xs h-9 px-4 font-semibold transition-all"
@@ -65,7 +102,7 @@ export function QueueManager({ queue }: QueueManagerProps) {
           >
             All Patients
           </Button>
-          {["WAITING", "CALLED", "IN_PROGRESS", "COMPLETED"].map((s) => (
+          {["WAITING", "CALLED", "IN_PROGRESS", "COMPLETED", "NO_SHOW"].map((s) => (
             <Button 
               key={s}
               variant={statusFilter === s ? "default" : "outline"} 
@@ -82,9 +119,15 @@ export function QueueManager({ queue }: QueueManagerProps) {
       <div className="grid gap-4">
         {filtered.length > 0 ? (
           filtered.map((apt) => (
-            <GlassCard key={apt.id} className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 group hover:border-primary/20 transition-all duration-300">
+            <GlassCard key={apt.id} className={cn(
+              "p-4 flex flex-col sm:flex-row items-center justify-between gap-4 group transition-all duration-300",
+              apt.queueToken?.status === "CALLED" ? "border-primary/40 bg-primary/5 shadow-glow-sm" : "hover:border-primary/20"
+            )}>
               <div className="flex items-center gap-5 w-full sm:w-auto">
-                <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/20 flex flex-col items-center justify-center text-primary group-hover:scale-105 transition-transform duration-500">
+                <div className={cn(
+                  "h-16 w-16 rounded-2xl border flex flex-col items-center justify-center transition-all duration-500",
+                  apt.queueToken?.status === "CALLED" ? "bg-primary text-primary-foreground border-primary" : "bg-primary/10 border-primary/20 text-primary group-hover:scale-105"
+                )}>
                   <span className="text-[10px] uppercase font-bold tracking-widest opacity-60">Token</span>
                   <span className="text-xl font-black">{apt.queueToken?.tokenNumber}</span>
                 </div>
@@ -103,9 +146,9 @@ export function QueueManager({ queue }: QueueManagerProps) {
                     {apt.queueToken?.calledAt && (
                       <>
                         <span className="opacity-30">•</span>
-                        <span className="flex items-center gap-1 text-primary/70">
-                          <ArrowRightLeft className="h-3 w-3" />
-                          Called at {typeof window !== 'undefined' && new Date(apt.queueToken.calledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <span className="flex items-center gap-1 text-primary/70 font-bold">
+                          <BellRing className="h-3 w-3" />
+                          Called {format(new Date(apt.queueToken.calledAt), "h:mm a")}
                         </span>
                       </>
                     )}
@@ -121,11 +164,25 @@ export function QueueManager({ queue }: QueueManagerProps) {
                 
                 <div className="flex items-center gap-2">
                   <div className="hidden sm:flex items-center gap-1 bg-secondary/30 rounded-xl p-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-background/80" title="Move Up">
-                      <ChevronUp className="h-4 w-4" />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-lg hover:bg-background/80" 
+                      title="Move Up"
+                      onClick={() => handleMove(apt.queueToken.id, "UP")}
+                      disabled={isPending || apt.queueToken.position === 1 || apt.queueToken.status !== "WAITING"}
+                    >
+                      {activeAction === `${apt.queueToken.id}-UP` ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronUp className="h-4 w-4" />}
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-background/80" title="Move Down">
-                      <ChevronDown className="h-4 w-4" />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-lg hover:bg-background/80" 
+                      title="Move Down"
+                      onClick={() => handleMove(apt.queueToken.id, "DOWN")}
+                      disabled={isPending || apt.queueToken.status !== "WAITING"}
+                    >
+                      {activeAction === `${apt.queueToken.id}-DOWN` ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
                   </div>
 
@@ -135,21 +192,24 @@ export function QueueManager({ queue }: QueueManagerProps) {
                         <MoreVertical className="h-5 w-5" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="glass-strong min-w-[180px] p-2 rounded-2xl">
-                      <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Actions</div>
-                      <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer" onClick={() => window.location.href = `/reception/patient/${apt.patient.id}`}>
-                        <User className="h-4 w-4" /> View Patient Details
+                    <DropdownMenuContent align="end" className="glass-strong min-w-[200px] p-2 rounded-2xl">
+                      <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">General Actions</div>
+                      <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer font-medium" onClick={() => window.location.href = `/reception/patient/${apt.patient.id}`}>
+                        <User className="h-4 w-4" /> View Full Profile
                       </DropdownMenuItem>
                       <div className="my-1 border-t border-border/40" />
-                      <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Update Status</div>
-                      <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer" onClick={() => handleStatusUpdate(apt.queueToken.id, "CALLED")}>
-                        <div className="h-2 w-2 rounded-full bg-blue-500" /> Call Patient
+                      <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Update Queue Status</div>
+                      <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer font-bold text-primary" onClick={() => handleStatusUpdate(apt.queueToken.id, "CALLED")}>
+                        <BellRing className="h-4 w-4" /> Call Patient
                       </DropdownMenuItem>
                       <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer" onClick={() => handleStatusUpdate(apt.queueToken.id, "IN_PROGRESS")}>
                         <div className="h-2 w-2 rounded-full bg-amber-500" /> Start Consultation
                       </DropdownMenuItem>
                       <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer" onClick={() => handleStatusUpdate(apt.queueToken.id, "WAITING")}>
-                        <div className="h-2 w-2 rounded-full bg-gray-500" /> Back to Waiting
+                        <div className="h-2 w-2 rounded-full bg-gray-500" /> Reset to Waiting
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer text-orange-500 focus:text-orange-600" onClick={() => handleStatusUpdate(apt.queueToken.id, "NO_SHOW")}>
+                        <UserMinus className="h-4 w-4" /> Mark as No-Show
                       </DropdownMenuItem>
                       <div className="my-1 border-t border-border/40" />
                       <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer text-destructive focus:text-destructive" onClick={() => handleStatusUpdate(apt.queueToken.id, "CANCELLED")}>
@@ -162,17 +222,17 @@ export function QueueManager({ queue }: QueueManagerProps) {
             </GlassCard>
           ))
         ) : (
-          <div className="py-24 flex flex-col items-center justify-center text-center glass rounded-[2rem] border-dashed border-border/60">
+          <div className="py-24 flex flex-col items-center justify-center text-center glass rounded-[2.5rem] border-dashed border-border/60">
             <div className="h-20 w-20 rounded-full bg-secondary/30 flex items-center justify-center mb-6">
               <Users2 className="h-10 w-10 text-muted-foreground/60" />
             </div>
-            <h3 className="text-lg font-bold">No matches found</h3>
-            <p className="text-sm text-muted-foreground max-w-[250px] mt-2">
-              Try adjusting your filters or search query to find the patient you're looking for.
+            <h3 className="text-lg font-bold">No matching records</h3>
+            <p className="text-sm text-muted-foreground max-w-[280px] mt-2">
+              We couldn't find any patients matching your current search or status filter.
             </p>
             {statusFilter && (
               <Button variant="link" onClick={() => setStatusFilter(null)} className="mt-4 text-primary font-bold">
-                Clear Status Filter
+                Clear Filters
               </Button>
             )}
           </div>
