@@ -15,7 +15,7 @@ import {
 import { signOut } from "next-auth/react";
 import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
-import { cn } from "@/lib/utils";
+// `cn` already imported above; removed duplicate import
 
 import Link from "next/link";
 
@@ -46,7 +46,7 @@ export function TopBar({ user }: TopBarProps) {
         </div>
 
         {/* search — desktop only */}
-        <form 
+        <form
           className="hidden md:flex flex-1 max-w-md ml-2"
           onSubmit={(e) => {
             e.preventDefault();
@@ -88,8 +88,8 @@ export function TopBar({ user }: TopBarProps) {
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length > 0 ? (
                   notifications.map((n: any) => (
-                    <DropdownMenuItem 
-                      key={n.id} 
+                    <DropdownMenuItem
+                      key={n.id}
                       className={cn(
                         "flex flex-col items-start gap-1 p-3 cursor-pointer",
                         !n.isRead && "bg-primary/5"

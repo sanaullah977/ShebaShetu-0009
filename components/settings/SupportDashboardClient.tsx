@@ -15,7 +15,7 @@ interface Ticket {
   subject: string;
   message: string;
   status: string;
-  createdAt: Date;
+  createdAt: string;
 }
 
 export function SupportDashboardClient({ initialTickets, role }: { initialTickets: Ticket[], role: "PATIENT" | "DOCTOR" }) {
@@ -27,7 +27,7 @@ export function SupportDashboardClient({ initialTickets, role }: { initialTicket
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    
+
     const formData = new FormData(e.currentTarget);
     const subject = formData.get("subject") as string;
     const message = formData.get("message") as string;
@@ -41,7 +41,7 @@ export function SupportDashboardClient({ initialTickets, role }: { initialTicket
       setSuccessMsg("Your message has been submitted. The support team will contact you soon.");
       (e.target as HTMLFormElement).reset();
       router.refresh();
-      
+
       setTimeout(() => setSuccessMsg(""), 10000); // Clear after 10s
     } else {
       toast.error(res.error || "Failed to submit ticket");
@@ -81,40 +81,40 @@ export function SupportDashboardClient({ initialTickets, role }: { initialTicket
         )}
 
         <GlassCard>
-           <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-             <MessageSquare className="h-5 w-5 text-primary" />
-             New Support Ticket
-           </h3>
-           <form onSubmit={handleSubmit} className="space-y-4">
-             {successMsg && (
-               <div className="p-3 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-xl text-xs font-bold leading-relaxed">
-                 {successMsg}
-               </div>
-             )}
-             <div className="space-y-1.5">
-               <label className="text-[11px] font-medium text-muted-foreground uppercase">Subject</label>
-               <input 
-                 name="subject" 
-                 placeholder="Brief summary of issue"
-                 className="w-full glass rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary/40"
-                 required
-               />
-             </div>
-             <div className="space-y-1.5">
-               <label className="text-[11px] font-medium text-muted-foreground uppercase">Message</label>
-               <textarea 
-                 name="message" 
-                 rows={4}
-                 placeholder="Describe your request in detail..."
-                 className="w-full glass rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary/40 resize-none"
-                 required
-               />
-             </div>
-             <Button disabled={loading} type="submit" className="w-full bg-primary text-primary-foreground shadow-glow h-12 font-bold rounded-xl active:scale-[0.98] transition-transform">
-               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-               Submit Ticket
-             </Button>
-           </form>
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-primary" />
+            New Support Ticket
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {successMsg && (
+              <div className="p-3 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-xl text-xs font-bold leading-relaxed">
+                {successMsg}
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase">Subject</label>
+              <input
+                name="subject"
+                placeholder="Brief summary of issue"
+                className="w-full glass rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary/40"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase">Message</label>
+              <textarea
+                name="message"
+                rows={4}
+                placeholder="Describe your request in detail..."
+                className="w-full glass rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary/40 resize-none"
+                required
+              />
+            </div>
+            <Button disabled={loading} type="submit" className="w-full bg-primary text-primary-foreground shadow-glow h-12 font-bold rounded-xl active:scale-[0.98] transition-transform">
+              {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Submit Ticket
+            </Button>
+          </form>
         </GlassCard>
       </div>
 
@@ -124,7 +124,7 @@ export function SupportDashboardClient({ initialTickets, role }: { initialTicket
             <History className="h-5 w-5 text-primary" />
             Your Recent Tickets
           </h3>
-          
+
           <div className="space-y-4">
             {tickets.length > 0 ? (
               tickets.map((t) => (

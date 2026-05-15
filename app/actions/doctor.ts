@@ -78,7 +78,7 @@ export async function createScheduleSlot(formData: FormData) {
         hospital: { select: { id: true, name: true } },
       }
     });
-    
+
     revalidatePath("/doctor/schedule");
     return { success: true, slot: serializeSlot(slot) };
   } catch (error) {
@@ -129,7 +129,7 @@ export async function startAppointment(appointmentId: string) {
 
     await prisma.appointment.update({
       where: { id: appointmentId },
-      data: { 
+      data: {
         status: "IN_PROGRESS",
         ...(appointment.queueToken ? {
           queueToken: {
@@ -141,7 +141,7 @@ export async function startAppointment(appointmentId: string) {
         } : {})
       }
     });
-    
+
     revalidatePath("/doctor/dashboard");
     return { success: true };
   } catch (error) {
@@ -295,35 +295,3 @@ export async function deleteScheduleSlot(slotId: string) {
   }
 }
 
-export async function getPatientReportsForDoctor(patientId: string) {
-  const session = await auth();
-  if (!session?.user || (session.user as any).role !== "DOCTOR") {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  const doctorUserId = (session.user as any).id;
-
-  try {
-    // SECURITY: Ensure this doctor has an active or past appointment with this patient
-    const hasAccess = await prisma.appointment.findFirst({
-      where: {
-        patientId,
-        doctor: { userId: doctorUserId },
-      }
-    });
-
-    if (!hasAccess) {
-      return { success: false, error: "Unauthorized access to patient reports" };
-    }
-
-    const reports = await prisma.report.findMany({
-      where: { patientId },
-      orderBy: { uploadedAt: "desc" }
-    });
-
-    return { success: true, reports };
-  } catch (error) {
-    console.error("Get patient reports error:", error);
-    return { success: false, error: "Failed to fetch reports" };
-  }
-}

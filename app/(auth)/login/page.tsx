@@ -24,6 +24,7 @@ const ROLES: { id: Role; label: string; sub: string; icon: any; tint: string }[]
   { id: "PATIENT", label: "Patient", sub: "Book, queue & track visits", icon: UserRound, tint: "from-emerald-500/20 to-emerald-500/5" },
   { id: "RECEPTION", label: "Reception", sub: "Manage queues & schedules", icon: ClipboardList, tint: "from-orange-400/20 to-orange-400/5" },
   { id: "DOCTOR", label: "Doctor", sub: "See patients & reports", icon: Stethoscope, tint: "from-sky-400/20 to-sky-400/5" },
+  { id: "ADMIN", label: "Admin", sub: "Manage system settings & users", icon: ShieldCheck, tint: "from-violet-400/20 to-violet-400/5" },
 ];
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

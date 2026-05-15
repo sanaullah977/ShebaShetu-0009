@@ -1,4 +1,4 @@
-// File: D:\Code_World\shebshetu\app\layout.tsx
+// File: C:\Users\MASUM\Desktop\sebasetu\ShebaShetu-0009\app\layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

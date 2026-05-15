@@ -22,7 +22,7 @@ export async function bookAppointment(formData: FormData) {
     }
 
     const userId = (session.user as any).id;
-    
+
     // Fetch and verify patient profile
     const patient = await prisma.patientProfile.findUnique({
       where: { userId }
@@ -43,10 +43,10 @@ export async function bookAppointment(formData: FormData) {
     const validated = bookingSchema.safeParse(rawData);
 
     if (!validated.success) {
-      return { 
-        success: false, 
-        error: "Invalid data", 
-        details: validated.error.flatten().fieldErrors 
+      return {
+        success: false,
+        error: "Invalid data",
+        details: validated.error.flatten().fieldErrors
       };
     }
 
@@ -61,16 +61,11 @@ export async function bookAppointment(formData: FormData) {
           }
         },
       }
-    } else {
-      // Fallback for non-slot based booking (legacy or emergency)
-      const existingAppointment = await prisma.appointment.findFirst({
-        where: {
-          doctorId,
-          scheduledAt: new Date(scheduledAt),
-          status: { not: AppointmentStatus.CANCELLED }
-        }
-      });
+    });
 
+    if (!slot) {
+      return { success: false, error: "Selected slot not found." };
+    }
     if (!slot || !slot.isAvailable || slot.isBooked) {
       return { success: false, error: "This slot is no longer available. Please choose another time." };
     }

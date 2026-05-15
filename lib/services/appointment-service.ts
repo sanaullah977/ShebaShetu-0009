@@ -239,29 +239,11 @@ export async function getPatientReports(userId: string, search?: string) {
   });
 }
 
-export async function getAllAppointments(userId: string) {
-  const patientId = await getPatientId(userId);
-  if (!patientId) return [];
-
-  return await prisma.appointment.findMany({
-    where: { patientId },
-    include: {
-      doctor: {
-        include: {
-          user: { select: { name: true, image: true } }
-        }
-      },
-      department: { select: { name: true } },
-      queueToken: true
-    },
-    orderBy: { scheduledAt: 'desc' }
-  });
-}
 
 export async function getAvailableSlots(doctorId: string, date: Date) {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
-  
+
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
 

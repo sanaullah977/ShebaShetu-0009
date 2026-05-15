@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { GlassCard } from "@/components/GlassCard";
-import { 
+import {
   Search, FileText,
-  Download, ExternalLink, Calendar, 
+  Download, ExternalLink, Calendar,
   Hash, XCircle
 } from "lucide-react";
 import { format } from "date-fns";
@@ -16,10 +17,11 @@ interface ReportVaultProps {
 
 export function ReportVault({ initialReports }: ReportVaultProps) {
   const [search, setSearch] = useState("");
+  const [reportType, setReportType] = useState("ALL");
 
   const filtered = initialReports.filter((r) => {
-    const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) || 
-                          (r.fileName?.toLowerCase() || "").includes(search.toLowerCase());
+    const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) ||
+      (r.fileName?.toLowerCase() || "").includes(search.toLowerCase());
     const matchesType = reportType === "ALL" || r.type === reportType;
     return matchesSearch && matchesType;
   });
@@ -29,7 +31,7 @@ export function ReportVault({ initialReports }: ReportVaultProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/10">
         <div className="relative group flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-          <input 
+          <input
             placeholder="Search by report name or filename..."
             className="w-full glass rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             value={search}
@@ -47,48 +49,48 @@ export function ReportVault({ initialReports }: ReportVaultProps) {
             const downloadUrl = `/api/reports/${report.id}/download`;
 
             return (
-            <GlassCard key={report.id} className="group hover:ring-1 hover:ring-primary/40 transition-all duration-300 p-0 overflow-hidden">
-              <div className="p-5 space-y-4">
-                <div className="flex items-start justify-between">
-                  <div className="h-12 w-12 rounded-2xl bg-primary/10 grid place-items-center text-primary group-hover:scale-110 transition-transform">
-                    <FileText className="h-6 w-6" />
+              <GlassCard key={report.id} className="group hover:ring-1 hover:ring-primary/40 transition-all duration-300 p-0 overflow-hidden">
+                <div className="p-5 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="h-12 w-12 rounded-2xl bg-primary/10 grid place-items-center text-primary group-hover:scale-110 transition-transform">
+                      <FileText className="h-6 w-6" />
+                    </div>
+                    <div className={cn(
+                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                      report.type === "LAB" ? "bg-blue-500/10 text-blue-500" :
+                        report.type === "IMAGING" ? "bg-purple-500/10 text-purple-500" :
+                          "bg-secondary text-muted-foreground"
+                    )}>
+                      {report.type}
+                    </div>
                   </div>
-                  <div className={cn(
-                    "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
-                    report.type === "LAB" ? "bg-blue-500/10 text-blue-500" :
-                    report.type === "IMAGING" ? "bg-purple-500/10 text-purple-500" :
-                    "bg-secondary text-muted-foreground"
-                  )}>
-                    {report.type}
+                  <div>
+                    <h4 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1">{report.title}</h4>
                   </div>
-                </div>
-                <div>
-                  <h4 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1">{report.title}</h4>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border/10">
+                    <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" /> {format(new Date(report.uploadedAt), 'MMM d, yyyy')}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground flex items-center gap-1 uppercase font-bold tracking-tighter">
+                      <Hash className="h-3 w-3" /> {(report.sizeBytes / 1024).toFixed(1)} KB
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-border/10">
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> {format(new Date(report.uploadedAt), 'MMM d, yyyy')}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-1 uppercase font-bold tracking-tighter">
-                    <Hash className="h-3 w-3" /> {(report.sizeBytes / 1024).toFixed(1)} KB
-                  </div>
+                <div className="p-3 bg-secondary/20 border-t border-border/40 grid grid-cols-2 gap-2">
+                  <Button variant="ghost" className="h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-primary" asChild>
+                    <a href={`${downloadUrl}?disposition=inline`} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> View
+                    </a>
+                  </Button>
+                  <Button variant="ghost" className="h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-primary" asChild>
+                    <a href={downloadUrl}>
+                      <Download className="h-3.5 w-3.5 mr-1.5" /> Get PDF
+                    </a>
+                  </Button>
                 </div>
-              </div>
-
-              <div className="p-3 bg-secondary/20 border-t border-border/40 grid grid-cols-2 gap-2">
-                <Button variant="ghost" className="h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-primary" asChild>
-                  <a href={`${downloadUrl}?disposition=inline`} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> View
-                  </a>
-                </Button>
-                <Button variant="ghost" className="h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-primary" asChild>
-                  <a href={downloadUrl}>
-                    <Download className="h-3.5 w-3.5 mr-1.5" /> Get PDF
-                  </a>
-                </Button>
-              </div>
-            </GlassCard>
+              </GlassCard>
             );
           })
         ) : (
