@@ -18,7 +18,6 @@ import { bookAppointment } from "@/app/actions/appointments";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 type BookingDoctor = {
   id: string;
@@ -71,8 +70,6 @@ export function BookingForm({ doctors, initialSpecialization }: BookingFormProps
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlotId, setSelectedSlotId] = useState("");
   const [symptoms, setSymptoms] = useState("");
-  const [slots, setSlots] = useState<any[]>([]);
-  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   const filteredDoctors = useMemo(() => {
     if (!selectedSpecialization) return [];
@@ -120,9 +117,6 @@ export function BookingForm({ doctors, initialSpecialization }: BookingFormProps
       toast.error("Please select a doctor, date, and available slot.");
       return;
     }
-
-    const selectedSlot = slots.find(s => s.id === selectedSlotId);
-    if (!selectedSlot) return;
 
     const formData = new FormData();
     formData.append("doctorId", selectedDoctor.id);
