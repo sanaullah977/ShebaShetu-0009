@@ -14,8 +14,10 @@ export default async function HomePage() {
     case "DOCTOR":
       redirect("/doctor/dashboard");
     case "RECEPTION":
-    case "ADMIN":
       redirect("/reception/dashboard");
+    case "ADMIN":
+    case "SUPER_ADMIN":
+      redirect("/admin/support");
     case "PATIENT":
     default:
       redirect("/patient/dashboard");

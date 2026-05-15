@@ -3,13 +3,12 @@
 import { useState } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { 
-  FolderHeart, Search, FileText, 
+  Search, FileText,
   Download, ExternalLink, Calendar, 
-  User, Hash, XCircle, Loader2
+  Hash, XCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface ReportVaultProps {
   initialReports: any[];
@@ -17,7 +16,6 @@ interface ReportVaultProps {
 
 export function ReportVault({ initialReports }: ReportVaultProps) {
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const filtered = initialReports.filter((r) => 
     r.title.toLowerCase().includes(search.toLowerCase()) || 
@@ -48,7 +46,10 @@ export function ReportVault({ initialReports }: ReportVaultProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.length > 0 ? (
-          filtered.map((report) => (
+          filtered.map((report) => {
+            const downloadUrl = `/api/reports/${report.id}/download`;
+
+            return (
             <GlassCard key={report.id} className="group hover:ring-1 hover:ring-primary/40 transition-all duration-300 p-0 overflow-hidden">
               <div className="p-5 space-y-4">
                 <div className="flex items-start justify-between">
@@ -59,10 +60,8 @@ export function ReportVault({ initialReports }: ReportVaultProps) {
                     {report.type}
                   </div>
                 </div>
-                
-                  <div>
-                    <h4 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1">{report.title}</h4>
-                  </div>
+                <div>
+                  <h4 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1">{report.title}</h4>
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
@@ -77,16 +76,19 @@ export function ReportVault({ initialReports }: ReportVaultProps) {
 
               <div className="p-3 bg-secondary/20 border-t border-border/40 grid grid-cols-2 gap-2">
                 <Button variant="ghost" className="h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-primary" asChild>
-                  <a href={report.fileUrl} target="_blank" rel="noopener noreferrer">
+                  <a href={`${downloadUrl}?disposition=inline`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> View
                   </a>
                 </Button>
-                <Button variant="ghost" className="h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-primary">
-                  <Download className="h-3.5 w-3.5 mr-1.5" /> Get PDF
+                <Button variant="ghost" className="h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 hover:text-primary" asChild>
+                  <a href={downloadUrl}>
+                    <Download className="h-3.5 w-3.5 mr-1.5" /> Get PDF
+                  </a>
                 </Button>
               </div>
             </GlassCard>
-          ))
+            );
+          })
         ) : (
           <div className="col-span-full py-24 flex flex-col items-center justify-center text-center glass rounded-[2.5rem] border-dashed border-2 border-border/60 opacity-60">
             <XCircle className="h-16 w-16 mb-4 text-muted-foreground/20" />

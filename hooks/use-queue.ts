@@ -8,6 +8,7 @@ export interface QueueStatusData {
   estimatedWait: number;
   doctorName: string;
   departmentName: string;
+  roomNumber?: string | null;
 }
 
 export function useQueueStatus(appointmentId?: string) {

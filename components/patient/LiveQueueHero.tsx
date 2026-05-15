@@ -21,7 +21,7 @@ export function LiveQueueHero({
   tokenNumber: initialToken = "N/A",
   departmentName: initialDept = "General",
   doctorName: initialDoc = "Assigning...",
-  roomNumber = "204",
+  roomNumber = "Room not assigned",
   initialAheadCount = 0
 }: LiveQueueHeroProps) {
   const router = useRouter();
@@ -31,6 +31,7 @@ export function LiveQueueHero({
   const token = data?.tokenNumber ?? initialToken;
   const dept = data?.departmentName ?? initialDept;
   const doc = data?.doctorName ?? initialDoc;
+  const room = data?.roomNumber || roomNumber || "Room not assigned";
   const aheadCount = data?.aheadCount ?? initialAheadCount;
   const eta = data?.estimatedWait ?? (initialAheadCount * 12);
   
@@ -80,7 +81,7 @@ export function LiveQueueHero({
               You are <span className="text-gradient-emerald">#{aheadCount}</span> in queue
             </div>
             <div className="text-sm text-muted-foreground mt-1">
-              Estimated wait <span className="text-foreground font-semibold">~{Math.round(eta)} min</span> · {doc} · Room {roomNumber}
+              Estimated wait <span className="text-foreground font-semibold">~{Math.round(eta)} min</span> · {doc} · {room === "Room not assigned" ? room : `Room ${room}`}
             </div>
           </div>
 

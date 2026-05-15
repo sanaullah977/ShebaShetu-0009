@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { ReactNode, HTMLAttributes } from "react";
 
 interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
-  children: ReactNode;
+  children?: ReactNode;
   variant?: "default" | "strong" | "outline";
   glow?: boolean;
   hover?: boolean;

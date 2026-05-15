@@ -1,15 +1,16 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { getFullQueue, getPendingCheckIns, getQueueMovements } from "@/lib/services/reception-service";
+import { getFullQueue, getPendingCheckIns, getQueueMovements, getReceptionHospitalId } from "@/lib/services/reception-service";
 import { QueueContent } from "./QueueContent";
 
 export default async function ReceptionQueuePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const hospitalId = await getReceptionHospitalId((session.user as any).id);
   const [queue, pendingAppointments, movements] = await Promise.all([
-    getFullQueue(),
-    getPendingCheckIns(),
+    getFullQueue(hospitalId),
+    getPendingCheckIns(hospitalId),
     getQueueMovements()
   ]);
 

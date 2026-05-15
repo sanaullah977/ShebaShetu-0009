@@ -1,12 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { GlassCard } from "@/components/GlassCard";
-import { CalendarDays, Clock, Plus, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { createScheduleSlot, toggleSlotAvailability } from "@/app/actions/doctor";
-import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { ScheduleManager } from "@/components/doctor/ScheduleManager";
 
 export default async function DoctorSchedulePage() {
   const session = await auth();
@@ -15,7 +10,23 @@ export default async function DoctorSchedulePage() {
   const doctor = await prisma.doctorProfile.findUnique({
     where: { userId: (session.user as any).id },
     include: {
+      departments: {
+        select: {
+          id: true,
+          name: true,
+          hospitalId: true,
+        }
+      },
       schedules: {
+        select: {
+          id: true,
+          doctorId: true,
+          hospitalId: true,
+          startTime: true,
+          endTime: true,
+          isAvailable: true,
+          isBooked: true,
+        },
         orderBy: { startTime: "asc" }
       }
     }
@@ -23,100 +34,53 @@ export default async function DoctorSchedulePage() {
 
   if (!doctor) return <div>Doctor profile not found.</div>;
 
+  const hospitalIds = Array.from(new Set([
+    ...doctor.departments.map((department) => department.hospitalId).filter(Boolean),
+    ...doctor.schedules.map((slot) => slot.hospitalId).filter(Boolean),
+  ])) as string[];
+
+  const hospitalRecords = hospitalIds.length > 0 ? await prisma.hospital.findMany({
+    where: { id: { in: hospitalIds } },
+    select: { id: true, name: true, address: true }
+  }) : [];
+
+  const hospitalById = new Map(hospitalRecords.map((hospital) => [hospital.id, hospital]));
+
+  const hospitals = Array.from(
+    new Map(
+      doctor.departments
+        .map((department) => department.hospitalId ? hospitalById.get(department.hospitalId) : null)
+        .filter(Boolean)
+        .map((hospital) => [hospital!.id, hospital!])
+    ).values()
+  );
+
+  const slots = doctor.schedules.map((slot) => ({
+    id: slot.id,
+    doctorId: slot.doctorId,
+    hospitalId: slot.hospitalId,
+    startTime: slot.startTime.toISOString(),
+    endTime: slot.endTime.toISOString(),
+    isAvailable: slot.isAvailable,
+    isBooked: slot.isBooked,
+    hospital: hospitalById.get(slot.hospitalId) ?? null,
+  }));
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-bold">Slot Management</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Set your availability and manage patient booking slots.
+            Set your availability for assigned hospitals and manage patient booking slots.
+          </p>
+          <p className="text-[11px] text-muted-foreground/70 mt-2">
+            Room number is stored globally on the doctor profile in this schema; hospital-specific room assignment is not modeled yet.
           </p>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <GlassCard className="lg:col-span-1">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Plus className="h-4 w-4 text-primary" />
-            Quick Add Slot
-          </h3>
-          <form action={createScheduleSlot} className="space-y-4">
-            <input type="hidden" name="hospitalId" value="6a04e089776596bf042269fc" /> {/* Placeholder Hospital */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-muted-foreground uppercase">Start Time</label>
-              <input 
-                type="datetime-local" 
-                name="startTime" 
-                className="w-full glass rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/40"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-muted-foreground uppercase">End Time</label>
-              <input 
-                type="datetime-local" 
-                name="endTime" 
-                className="w-full glass rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/40"
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full bg-primary text-primary-foreground shadow-glow">
-              Generate Slot
-            </Button>
-          </form>
-        </GlassCard>
-
-        <GlassCard className="lg:col-span-2">
-          <h3 className="font-semibold mb-6 flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-primary" />
-            Your Time Slots
-          </h3>
-          
-          <div className="space-y-3">
-            {doctor.schedules.length > 0 ? (
-              doctor.schedules.map((slot) => (
-                <div key={slot.id} className="glass rounded-xl p-4 flex items-center justify-between group">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "h-10 w-10 rounded-xl grid place-items-center",
-                      slot.isBooked ? "bg-primary/10" : "bg-emerald-500/10"
-                    )}>
-                      <Clock className={cn("h-5 w-5", slot.isBooked ? "text-primary" : "text-emerald-500")} />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">
-                        {format(new Date(slot.startTime), "MMM d, h:mm a")} - {format(new Date(slot.endTime), "h:mm a")}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        {slot.isBooked ? "Booked by Patient" : "Available for Booking"}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {!slot.isBooked && (
-                    <div className="flex items-center gap-2">
-                      <form action={async () => {
-                        "use server"
-                        const { deleteScheduleSlot } = await import("@/app/actions/doctor");
-                        await deleteScheduleSlot(slot.id);
-                      }}>
-                        <button type="submit" className="h-8 w-8 rounded-lg glass flex items-center justify-center text-destructive hover:bg-destructive/10 transition-colors">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </form>
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="py-20 text-center opacity-40">
-                <CalendarDays className="h-12 w-12 mx-auto mb-4" />
-                <p className="text-sm">You haven't created any slots yet.</p>
-              </div>
-            )}
-          </div>
-        </GlassCard>
-      </div>
+      <ScheduleManager hospitals={hospitals} initialSlots={slots} />
     </div>
   );
 }

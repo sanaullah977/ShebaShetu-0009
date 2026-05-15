@@ -46,6 +46,7 @@ model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
   email         String?   @unique
+  phone         String?
   emailVerified DateTime?
   image         String?
   passwordHash  String?
@@ -59,6 +60,7 @@ model User {
   receptionProfile ReceptionProfile?
   userPreference   UserPreference?
   supportTickets   SupportTicket[]
+  supportReplies    SupportTicketReply[]
   activityLogs     ActivityLog[]
 }
 
@@ -83,6 +85,7 @@ model DoctorProfile {
   specialization String
   licenseNo      String?
   consultationFee Float?
+  roomNumber      String?
   
   departmentIds  String[] @db.ObjectId
   departments    Department[] @relation(fields: [departmentIds], references: [id])
@@ -258,8 +261,22 @@ model SupportTicket {
   category    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  replies     SupportTicketReply[]
 
   @@index([userId, status])
+}
+
+model SupportTicketReply {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId  String        @db.ObjectId
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId  String        @db.ObjectId
+  sender    User          @relation(fields: [senderId], references: [id])
+  message   String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
+  @@index([senderId])
 }
 
 model TwoFactorToken {

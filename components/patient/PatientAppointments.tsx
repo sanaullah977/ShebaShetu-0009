@@ -1,12 +1,15 @@
 "use client"
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { StatusPill } from "@/components/StatusPill";
 import { format } from "date-fns";
 import { CalendarDays, Clock, Search, Filter, ChevronRight, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
+} from "@/components/ui/dialog";
 
 interface PatientAppointmentsProps {
   initialAppointments: any[];
@@ -15,10 +18,20 @@ interface PatientAppointmentsProps {
 export function PatientAppointments({ initialAppointments }: PatientAppointmentsProps) {
   const [filter, setFilter] = useState<"ALL" | "UPCOMING" | "COMPLETED" | "CANCELLED">("ALL");
   const [search, setSearch] = useState("");
+  const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
 
-  const filtered = initialAppointments.filter((apt) => {
-    const matchesSearch = apt.doctor.user.name.toLowerCase().includes(search.toLowerCase()) || 
-                          apt.department.name.toLowerCase().includes(search.toLowerCase());
+  const filtered = useMemo(() => initialAppointments.filter((apt) => {
+    const scheduledDate = format(new Date(apt.scheduledAt), "d MMM yyyy h:mm a").toLowerCase();
+    const haystack = [
+      apt.doctor?.user?.name,
+      apt.doctor?.specialization,
+      apt.department?.name,
+      apt.status,
+      scheduledDate,
+      apt.symptoms,
+      apt.clinicalNotes,
+    ].filter(Boolean).join(" ").toLowerCase();
+    const matchesSearch = !search.trim() || haystack.includes(search.toLowerCase().trim());
     
     if (!matchesSearch) return false;
     
@@ -29,7 +42,7 @@ export function PatientAppointments({ initialAppointments }: PatientAppointments
     if (filter === "CANCELLED") return apt.status === "CANCELLED";
     
     return true;
-  });
+  }), [initialAppointments, search, filter]);
 
   return (
     <div className="space-y-6">
@@ -52,7 +65,7 @@ export function PatientAppointments({ initialAppointments }: PatientAppointments
         <div className="relative group max-w-sm w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <input 
-            placeholder="Search by doctor or dept..."
+            placeholder="Search doctor, date, status, reason..."
             className="w-full glass rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -104,7 +117,13 @@ export function PatientAppointments({ initialAppointments }: PatientAppointments
                   <div className="sm:hidden flex-1">
                     <StatusPill status={apt.status.toLowerCase() as any} />
                   </div>
-                  <Button variant="ghost" size="icon" className="rounded-full glass hover:bg-primary/10 hover:text-primary transition-all">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full glass hover:bg-primary/10 hover:text-primary transition-all"
+                    onClick={() => setSelectedAppointment(apt)}
+                  >
                     <ChevronRight className="h-5 w-5" />
                   </Button>
                 </div>
@@ -121,6 +140,41 @@ export function PatientAppointments({ initialAppointments }: PatientAppointments
           </div>
         )}
       </div>
+
+      <Dialog open={!!selectedAppointment} onOpenChange={(open) => !open && setSelectedAppointment(null)}>
+        <DialogContent className="glass-strong border-border/60">
+          <DialogHeader>
+            <DialogTitle>Appointment Details</DialogTitle>
+            <DialogDescription>
+              Review your selected appointment information.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAppointment && (
+            <div className="grid gap-3 text-sm">
+              <Detail label="Doctor" value={selectedAppointment.doctor?.user?.name || "Not assigned"} />
+              <Detail label="Specialization" value={selectedAppointment.doctor?.specialization || selectedAppointment.department?.name || "General"} />
+              <Detail label="Department" value={selectedAppointment.department?.name || "Not provided"} />
+              <Detail label="Date" value={format(new Date(selectedAppointment.scheduledAt), "PPP")} />
+              <Detail label="Time" value={format(new Date(selectedAppointment.scheduledAt), "p")} />
+              <Detail label="Status" value={selectedAppointment.status || "PENDING"} />
+              <Detail label="Queue Token" value={selectedAppointment.queueToken?.tokenNumber || "Not checked in"} />
+              <div className="rounded-xl bg-background/40 border border-border/40 p-3">
+                <div className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Reason / Notes</div>
+                <div className="mt-1 text-sm">{selectedAppointment.symptoms || "No reason provided."}</div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-background/40 border border-border/40 p-3">
+      <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">{label}</span>
+      <span className="font-bold text-right">{value}</span>
     </div>
   );
 }

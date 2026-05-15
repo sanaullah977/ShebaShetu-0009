@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { getCachedDepartments } from "@/lib/services/appointment-service";
+import { getBookingOptions } from "@/lib/services/appointment-service";
 import { BookingForm } from "@/components/patient/BookingForm";
 
 export default async function BookingPage({
@@ -13,8 +13,7 @@ export default async function BookingPage({
 
   const { dept } = await searchParams;
 
-  // Optimized: Fetching from cache
-  const departments = await getCachedDepartments();
+  const doctors = await getBookingOptions();
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-10">
@@ -28,7 +27,7 @@ export default async function BookingPage({
         </div>
       </div>
 
-      <BookingForm departments={departments as any[]} initialDept={dept} />
+      <BookingForm doctors={doctors} initialSpecialization={dept} />
     </div>
   );
 }

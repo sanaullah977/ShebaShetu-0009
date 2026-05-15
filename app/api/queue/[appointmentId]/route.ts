@@ -61,6 +61,7 @@ export async function GET(
         estimatedWait: aheadCount * 15, // Simple heuristic: 15 mins per person
         doctorName: appointment.doctor.user.name,
         departmentName: appointment.department.name,
+        roomNumber: appointment.doctor.roomNumber,
       }
     });
   } catch (error) {

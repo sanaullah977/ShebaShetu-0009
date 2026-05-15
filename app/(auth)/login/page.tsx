@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   UserRound, ClipboardList, Stethoscope, ArrowRight, Mail, Lock,
-  Sparkles, ShieldCheck, Activity,
+  Sparkles, ShieldCheck, Activity, Eye, EyeOff, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signIn } from "next-auth/react";
@@ -21,42 +21,84 @@ import { toast } from "sonner";
 type Role = "PATIENT" | "RECEPTION" | "DOCTOR" | "ADMIN";
 
 const ROLES: { id: Role; label: string; sub: string; icon: any; tint: string }[] = [
-  { id: "PATIENT",   label: "Patient",   sub: "Book, queue & track visits",  icon: UserRound,     tint: "from-emerald-500/20 to-emerald-500/5" },
-  { id: "RECEPTION", label: "Reception", sub: "Manage queues & schedules",   icon: ClipboardList, tint: "from-orange-400/20 to-orange-400/5" },
-  { id: "DOCTOR",    label: "Doctor",    sub: "See patients & reports",      icon: Stethoscope,   tint: "from-sky-400/20 to-sky-400/5" },
+  { id: "PATIENT", label: "Patient", sub: "Book, queue & track visits", icon: UserRound, tint: "from-emerald-500/20 to-emerald-500/5" },
+  { id: "RECEPTION", label: "Reception", sub: "Manage queues & schedules", icon: ClipboardList, tint: "from-orange-400/20 to-orange-400/5" },
+  { id: "DOCTOR", label: "Doctor", sub: "See patients & reports", icon: Stethoscope, tint: "from-sky-400/20 to-sky-400/5" },
 ];
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginPage() {
   const [selected, setSelected] = useState<Role>("PATIENT");
   const [mode, setMode] = useState<"login" | "register">("login");
   const [forgot, setForgot] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState("");
   const router = useRouter();
 
-  const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (loading) return;
+
+    const formData = new FormData(event.currentTarget);
+    const name = String(formData.get("name") || "").trim();
+    const email = String(formData.get("email") || "").trim().toLowerCase();
+    const password = String(formData.get("password") || "");
+    const confirmPassword = String(formData.get("confirmPassword") || "");
+
+    if (!email) {
+      toast.error("Email is required.");
+      return;
+    }
+
+    if (!emailPattern.test(email)) {
+      toast.error("Enter a valid email address.");
+      return;
+    }
+
+    if (!password) {
+      toast.error("Password is required.");
+      return;
+    }
+
+    if (mode === "register") {
+      if (name.length < 2) {
+        toast.error("Name must be at least 2 characters.");
+        return;
+      }
+
+      if (password.length < 6) {
+        toast.error("Password must be at least 6 characters.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        toast.error("Password and confirmation do not match.");
+        return;
+      }
+    }
+
     setLoading(true);
-    
-    const formData = new FormData(e.currentTarget);
-    formData.append("role", selected); // Ensure role is sent
+    formData.set("email", email);
+    formData.set("role", selected);
 
     try {
       if (mode === "register") {
         const { register } = await import("@/app/actions/auth");
         const result = await register(formData);
-        
+
         if (!result.success) {
           toast.error(result.error || "Registration failed");
           setLoading(false);
           return;
         }
-        
+
         toast.success("Account created! Signing you in...");
       }
-
-      // Both login and post-register sign-in
-      const email = formData.get("email") as string;
-      const password = formData.get("password") as string;
 
       const result = await signIn("credentials", {
         email,
@@ -77,9 +119,52 @@ export default function LoginPage() {
     }
   };
 
+  const handleForgotPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (forgotLoading) return;
+
+    const email = forgotEmail.trim().toLowerCase();
+    if (!email) {
+      toast.error("Email is required.");
+      return;
+    }
+
+    if (!emailPattern.test(email)) {
+      toast.error("Enter a valid email address.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("email", email);
+    setForgotLoading(true);
+    setForgotMessage("");
+
+    try {
+      const { requestPasswordReset } = await import("@/app/actions/auth");
+      const result = await requestPasswordReset(formData);
+
+      if (result.success) {
+        const message = result.message || "Password reset request submitted. Please contact support or check your email if email service is configured.";
+        setForgotMessage(message);
+        toast.success("Password reset request submitted.");
+      } else {
+        toast.error(result.error || "Unable to submit password reset request.");
+      }
+    } catch (error) {
+      toast.error("Unable to submit password reset request.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const switchMode = () => {
+    setMode(mode === "login" ? "register" : "login");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
+
   return (
     <div className="min-h-screen w-full grid lg:grid-cols-2">
-      {/* left — brand panel */}
       <div className="relative hidden lg:flex flex-col justify-between p-10 overflow-hidden border-r border-border/60">
         <div className="absolute inset-0 -z-10 bg-gradient-page" />
         <div className="absolute -top-24 -left-24 w-[28rem] h-[28rem] rounded-full bg-primary/20 blur-[120px]" />
@@ -98,17 +183,17 @@ export default function LoginPage() {
           </h1>
           <p className="text-muted-foreground text-base leading-relaxed">
             ShebaSetu uses AI to guide you to the right department, gives you a digital
-            token, and shows your live position — so you only arrive when it's your turn.
+            token, and shows your live position so you only arrive when it is your turn.
           </p>
 
           <div className="grid grid-cols-3 gap-3 pt-2">
             {[
-              { icon: Sparkles,    label: "AI Guidance" },
-              { icon: Activity,    label: "Live Queue" },
+              { icon: Sparkles, label: "AI Guidance" },
+              { icon: Activity, label: "Live Queue" },
               { icon: ShieldCheck, label: "Private & secure" },
-            ].map(({ icon: I, label }) => (
+            ].map(({ icon: Icon, label }) => (
               <div key={label} className="glass rounded-xl p-3 text-center">
-                <I className="h-4 w-4 mx-auto text-primary mb-1.5" />
+                <Icon className="h-4 w-4 mx-auto text-primary mb-1.5" />
                 <div className="text-[11px] font-medium">{label}</div>
               </div>
             ))}
@@ -116,11 +201,10 @@ export default function LoginPage() {
         </div>
 
         <div className="text-[11px] text-muted-foreground">
-          © {new Date().getFullYear()} ShebaSetu · Made for Bangladesh's outpatient care
+          (c) {new Date().getFullYear()} ShebaSetu - Made for Bangladesh outpatient care
         </div>
       </div>
 
-      {/* right — auth */}
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md space-y-6">
           <div className="lg:hidden flex justify-center">
@@ -136,26 +220,25 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Role cards */}
           <div className="grid grid-cols-3 gap-2.5">
-            {ROLES.map((r) => {
-              const I = r.icon;
-              const active = selected === r.id;
+            {ROLES.map((role) => {
+              const Icon = role.icon;
+              const active = selected === role.id;
               return (
                 <button
-                  key={r.id}
+                  key={role.id}
                   type="button"
-                  onClick={() => setSelected(r.id)}
+                  onClick={() => setSelected(role.id)}
                   className={cn(
                     "relative rounded-2xl p-3 text-left transition-all overflow-hidden",
                     "glass glass-hover",
                     active && "ring-1 ring-primary/60 shadow-glow"
                   )}
                 >
-                  <div className={cn("absolute inset-0 -z-10 bg-gradient-to-br opacity-60", r.tint)} />
-                  <I className={cn("h-5 w-5 mb-2", active ? "text-primary" : "text-muted-foreground")} />
-                  <div className="text-sm font-semibold">{r.label}</div>
-                  <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{r.sub}</div>
+                  <div className={cn("absolute inset-0 -z-10 bg-gradient-to-br opacity-60", role.tint)} />
+                  <Icon className={cn("h-5 w-5 mb-2", active ? "text-primary" : "text-muted-foreground")} />
+                  <div className="text-sm font-semibold">{role.label}</div>
+                  <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{role.sub}</div>
                   {active && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary shadow-glow" />}
                 </button>
               );
@@ -167,56 +250,98 @@ export default function LoginPage() {
               {mode === "register" && (
                 <div className="space-y-1.5">
                   <Label htmlFor="name">Full name</Label>
-                  <Input id="name" name="name" placeholder="Enter your full name" required />
+                  <Input id="name" name="name" placeholder="Enter your full name" autoComplete="name" required />
                 </div>
               )}
+
               <div className="space-y-1.5">
-                <Label htmlFor="email">Email or phone</Label>
+                <Label htmlFor="email">Email address</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="email" name="email" className="pl-9" placeholder="you@example.com" required />
+                  <Input id="email" name="email" type="email" className="pl-9" placeholder="you@example.com" autoComplete="email" required />
                 </div>
               </div>
+
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
                   {mode === "login" && (
-                    <button type="button" onClick={() => setForgot(true)} className="text-[11px] text-primary hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgot(true);
+                        setForgotMessage("");
+                      }}
+                      className="text-[11px] text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm"
+                    >
                       Forgot password?
                     </button>
                   )}
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="password" name="password" type="password" className="pl-9" placeholder="••••••••" required />
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    className="pl-9 pr-11"
+                    placeholder="********"
+                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
-                size="lg" 
+              {mode === "register" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPassword">Confirm password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      className="pl-9 pr-11"
+                      placeholder="********"
+                      autoComplete="new-password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                      aria-pressed={showConfirmPassword}
+                      onClick={() => setShowConfirmPassword((value) => !value)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-md inline-flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                size="lg"
                 className="w-full bg-gradient-emerald text-primary-foreground font-semibold hover:opacity-95 shadow-glow"
                 disabled={loading}
               >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {loading ? "Processing..." : (mode === "login" ? "Sign in" : "Create account")}
                 {!loading && <ArrowRight className="ml-1 h-4 w-4" />}
               </Button>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
-                  <span className="bg-card/80 px-2 text-muted-foreground">or</span>
-                </div>
-              </div>
-
-              <button type="button" className="w-full glass glass-hover rounded-lg py-2.5 text-sm font-medium">
-                Continue with Google
-              </button>
-
               <div className="text-center text-xs text-muted-foreground">
                 {mode === "login" ? "New to ShebaSetu?" : "Already have an account?"}{" "}
-                <button type="button" className="text-primary font-medium hover:underline"
-                  onClick={() => setMode(mode === "login" ? "register" : "login")}>
+                <button type="button" className="text-primary font-medium hover:underline" onClick={switchMode}>
                   {mode === "login" ? "Create an account" : "Sign in"}
                 </button>
               </div>
@@ -225,27 +350,44 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Forgot password modal */}
       <Dialog open={forgot} onOpenChange={setForgot}>
         <DialogContent className="glass-strong border-border/60 sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Reset your password</DialogTitle>
             <DialogDescription>
-              Enter the email or phone tied to your ShebaSetu account. We'll send a 6-digit OTP.
+              Enter the email tied to your ShebaSetu account.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 pt-2">
+          <form onSubmit={handleForgotPassword} className="space-y-3 pt-2">
             <div className="space-y-1.5">
-              <Label htmlFor="reset">Email or phone</Label>
-              <Input id="reset" placeholder="you@example.com" />
+              <Label htmlFor="reset">Email address</Label>
+              <Input
+                id="reset"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                value={forgotEmail}
+                onChange={(event) => {
+                  setForgotEmail(event.target.value);
+                  setForgotMessage("");
+                }}
+                autoComplete="email"
+                required
+              />
             </div>
-            <Button className="w-full bg-gradient-emerald text-primary-foreground shadow-glow" onClick={() => setForgot(false)}>
-              Send reset code
+            {forgotMessage && (
+              <div className="rounded-xl border border-primary/20 bg-primary/10 p-3 text-xs text-primary">
+                {forgotMessage}
+              </div>
+            )}
+            <Button type="submit" disabled={forgotLoading} className="w-full bg-gradient-emerald text-primary-foreground shadow-glow">
+              {forgotLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit reset request
             </Button>
-            <p className="text-[11px] text-muted-foreground text-center">
-              Didn't receive it? Check spam or try after 60 seconds.
-            </p>
-          </div>
+            <Button type="button" variant="ghost" className="w-full text-xs" onClick={() => setForgot(false)}>
+              Back to login
+            </Button>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

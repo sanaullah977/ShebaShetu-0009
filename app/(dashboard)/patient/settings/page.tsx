@@ -13,7 +13,7 @@ export default async function PatientSettingsPage() {
     prisma.user.findUnique({
       where: { id: userId },
       select: { 
-        id: true, name: true, email: true, image: true,
+        id: true, name: true, email: true, phone: true, image: true, role: true,
         patientProfile: true
       }
     }),
