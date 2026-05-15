@@ -8,18 +8,17 @@ import { z } from "zod";
 import { uploadToImgBB } from "@/lib/upload";
 
 const profileSchema = z.object({
-  name: z.string().min(2),
-  image: z.string().optional(),
-  // Doctor fields
-  specialization: z.string().optional(),
-  consultationFee: z.number().optional(),
-  roomNumber: z.string().optional(),
-  // Patient fields
-  age: z.number().optional(),
-  gender: z.string().optional(),
-  bloodGroup: z.string().optional(),
-  address: z.string().optional(),
-  emergencyContact: z.string().optional(),
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  image: z.string().optional().nullable(),
+  phone: z.string().trim().max(30).optional().nullable(),
+  specialization: z.string().trim().max(80).optional().nullable(),
+  consultationFee: z.coerce.number().min(0).optional().nullable(),
+  roomNumber: z.string().trim().max(30).optional().nullable(),
+  gender: z.enum(["Male", "Female", "Other"]).optional().nullable(),
+  bloodGroup: z.enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]).optional().nullable(),
+  age: z.coerce.number().int().min(0).max(130).optional().nullable(),
+  address: z.string().trim().max(300).optional().nullable(),
+  emergencyContact: z.string().trim().max(50).optional().nullable(),
 });
 
 export async function updateProfile(data: z.infer<typeof profileSchema>) {
@@ -27,59 +26,81 @@ export async function updateProfile(data: z.infer<typeof profileSchema>) {
   if (!session?.user) return { success: false, error: "Unauthorized" };
 
   const userId = (session.user as any).id;
+  const role = (session.user as any).role as string | undefined;
+  const parsed = profileSchema.safeParse(data);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please check the highlighted profile fields.",
+      details: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const values = parsed.data;
 
   try {
-    let imageUrl = data.image;
-    
-    // If image is base64, upload to ImgBB
-    if (data.image && data.image.startsWith("data:image")) {
-      const uploadedUrl = await uploadToImgBB(data.image);
-      if (uploadedUrl) {
-        imageUrl = uploadedUrl;
-      }
-    }
-
-    // Update base user
     await prisma.user.update({
       where: { id: userId },
       data: {
-        name: data.name,
-        image: imageUrl,
+        name: values.name,
+        image: values.image || undefined,
+        phone: values.phone || null,
       }
     });
 
-    // Update doctor profile if it exists
-    const doctor = await prisma.doctorProfile.findUnique({ where: { userId } });
-    if (doctor) {
+    if (role === "DOCTOR") {
       await prisma.doctorProfile.update({
         where: { userId },
         data: {
-          specialization: data.specialization || doctor.specialization,
-          consultationFee: data.consultationFee ?? doctor.consultationFee,
-          roomNumber: data.roomNumber || doctor.roomNumber,
+          specialization: values.specialization || undefined,
+          consultationFee: values.consultationFee ?? undefined,
+          roomNumber: values.roomNumber || null,
         }
       });
     }
 
-    // Update patient profile if it exists
-    const patient = await prisma.patientProfile.findUnique({ where: { userId } });
-    if (patient) {
+    if (role === "PATIENT") {
       await prisma.patientProfile.update({
         where: { userId },
         data: {
-          age: data.age ?? patient.age,
-          gender: data.gender || patient.gender,
-          bloodGroup: data.bloodGroup || patient.bloodGroup,
-          address: data.address || patient.address,
-          emergencyContact: data.emergencyContact || patient.emergencyContact,
+          gender: values.gender || null,
+          bloodGroup: values.bloodGroup || null,
+          age: values.age ?? null,
+          address: values.address || null,
+          emergencyContact: values.emergencyContact || null,
         }
       });
     }
+
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        image: true,
+        role: true,
+        doctorProfile: {
+          select: {
+            specialization: true,
+            consultationFee: true,
+            roomNumber: true,
+          }
+        },
+        patientProfile: true,
+        receptionProfile: true,
+      }
+    });
     
+    revalidatePath("/patient/settings");
     revalidatePath("/doctor/settings");
     revalidatePath("/patient/settings");
     revalidatePath("/reception/settings");
-    return { success: true };
+    revalidatePath("/patient/dashboard");
+    revalidatePath("/doctor/dashboard");
+    return { success: true, user: updatedUser };
   } catch (error) {
     console.error("Update profile error:", error);
     return { success: false, error: "Failed to update profile" };
@@ -91,7 +112,7 @@ export async function updatePreferences(data: { emailAlerts?: boolean; queueUpda
   if (!session?.user) return { success: false, error: "Unauthorized" };
 
   try {
-    await prisma.userPreference.upsert({
+    const preferences = await prisma.userPreference.upsert({
       where: { userId: (session.user as any).id },
       update: data,
       create: {
@@ -100,28 +121,67 @@ export async function updatePreferences(data: { emailAlerts?: boolean; queueUpda
       }
     });
     
+    revalidatePath("/patient/settings");
     revalidatePath("/doctor/settings");
     revalidatePath("/reception/settings");
-    return { success: true };
+    return { success: true, preferences: updatedPreferences(data, preferences) };
   } catch (error) {
     return { success: false, error: "Failed to update preferences" };
   }
 }
 
-export async function updatePassword(current: string, next: string) {
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z
+    .string()
+    .min(8, "New password must be at least 8 characters")
+    .regex(/[a-z]/, "New password must include a lowercase letter")
+    .regex(/[A-Z]/, "New password must include an uppercase letter")
+    .regex(/[0-9]/, "New password must include a number"),
+  confirmPassword: z.string().min(1, "Please confirm the new password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  path: ["confirmPassword"],
+  message: "New password and confirmation do not match",
+}).refine((data) => data.currentPassword !== data.newPassword, {
+  path: ["newPassword"],
+  message: "New password must be different from the current password",
+});
+
+export async function updatePassword(data: z.infer<typeof passwordSchema>) {
   const session = await auth();
   if (!session?.user) return { success: false, error: "Unauthorized" };
+
+  const parsed = passwordSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Please check the password fields.",
+      details: parsed.error.flatten().fieldErrors,
+    };
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: (session.user as any).id }
   });
 
-  if (!user || !user.passwordHash) return { success: false, error: "User not found" };
+  if (!user) return { success: false, error: "User not found" };
+  if (!user.passwordHash) {
+    return {
+      success: false,
+      error: "Password update is unavailable for this account. Please use your social login provider.",
+    };
+  }
 
-  const isValid = await bcrypt.compare(current, user.passwordHash);
+  const { currentPassword, newPassword } = parsed.data;
+  const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!isValid) return { success: false, error: "Incorrect current password" };
 
-  const passwordHash = await bcrypt.hash(next, 10);
+  const sameAsCurrent = await bcrypt.compare(newPassword, user.passwordHash);
+  if (sameAsCurrent) {
+    return { success: false, error: "New password must be different from the current password" };
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({
     where: { id: user.id },
     data: { passwordHash }
@@ -134,16 +194,73 @@ export async function createSupportTicket(subject: string, message: string) {
   const session = await auth();
   if (!session?.user) return { success: false, error: "Unauthorized" };
 
+  const input = z.object({
+    subject: z.string().trim().min(3).max(120),
+    message: z.string().trim().min(10).max(2000),
+  }).safeParse({ subject, message });
+
+  if (!input.success) {
+    return { success: false, error: "Please add a clear subject and message." };
+  }
+
   try {
-    await prisma.supportTicket.create({
+    const submitterName = session.user.name || "A user";
+    const ticket = await prisma.supportTicket.create({
       data: {
         userId: (session.user as any).id,
-        subject,
-        message,
+        subject: input.data.subject,
+        message: input.data.message,
       }
     });
-    return { success: true };
+
+    const handlers = await prisma.user.findMany({
+      where: {
+        role: { in: ["ADMIN", "SUPER_ADMIN"] },
+        isActive: true,
+      },
+      select: { id: true }
+    });
+
+    if (handlers.length > 0) {
+      await prisma.notification.createMany({
+        data: handlers.map((handler) => ({
+          userId: handler.id,
+          title: "New Support Ticket",
+          message: `${submitterName} submitted: ${ticket.subject}`,
+          type: "NEW_MESSAGE",
+          link: "/admin/support",
+        }))
+      });
+    }
+
+    revalidatePath("/patient/support");
+    revalidatePath("/doctor/support");
+    revalidatePath("/reception/support");
+
+    return {
+      success: true,
+      ticket: {
+        id: ticket.id,
+        subject: ticket.subject,
+        message: ticket.message,
+        status: ticket.status,
+        priority: ticket.priority,
+        category: ticket.category,
+        createdAt: ticket.createdAt.toISOString(),
+        updatedAt: ticket.updatedAt.toISOString(),
+      }
+    };
   } catch (error) {
     return { success: false, error: "Failed to submit ticket" };
   }
+}
+
+function updatedPreferences(
+  patch: { emailAlerts?: boolean; queueUpdates?: boolean },
+  persisted: { emailAlerts: boolean; queueUpdates: boolean } | null,
+) {
+  return {
+    emailAlerts: patch.emailAlerts ?? persisted?.emailAlerts ?? true,
+    queueUpdates: patch.queueUpdates ?? persisted?.queueUpdates ?? true,
+  };
 }

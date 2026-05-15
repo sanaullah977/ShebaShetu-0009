@@ -1,13 +1,14 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { getDoctorsWithSchedules } from "@/lib/services/reception-service";
+import { getDoctorsWithSchedules, getReceptionHospitalId } from "@/lib/services/reception-service";
 import { DoctorScheduleView } from "@/components/reception/DoctorScheduleView";
 
 export default async function ReceptionSchedulePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const doctors = await getDoctorsWithSchedules();
+  const hospitalId = await getReceptionHospitalId((session.user as any).id);
+  const doctors = await getDoctorsWithSchedules(hospitalId);
   const serializedDoctors = JSON.parse(JSON.stringify(doctors));
 
   return (

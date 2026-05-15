@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { getReceptionStats, getRecentCheckIns, getActiveDoctors } from "@/lib/services/reception-service";
+import { getReceptionStats, getRecentCheckIns, getActiveDoctors, getReceptionHospitalId } from "@/lib/services/reception-service";
 import { format } from "date-fns";
 import { StatusPill } from "@/components/StatusPill";
 import { DashboardSearch } from "@/components/reception/DashboardSearch";
@@ -16,10 +16,11 @@ export default async function ReceptionDashboard() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const hospitalId = await getReceptionHospitalId((session.user as any).id);
   const [stats, recentCheckIns, activeDoctors] = await Promise.all([
-    getReceptionStats(),
-    getRecentCheckIns(),
-    getActiveDoctors()
+    getReceptionStats(hospitalId),
+    getRecentCheckIns(5, hospitalId),
+    getActiveDoctors(hospitalId)
   ]);
 
   return (

@@ -22,7 +22,7 @@ export function LiveQueueHero({
   tokenNumber: initialToken = "N/A",
   departmentName: initialDept = "General",
   doctorName: initialDoc = "Assigning...",
-  roomNumber = "Not assigned",
+  roomNumber = "Room not assigned",
   initialAheadCount = 0
 }: LiveQueueHeroProps) {
   const router = useRouter();
@@ -32,6 +32,7 @@ export function LiveQueueHero({
   const token = data?.tokenNumber ?? initialToken;
   const dept = data?.departmentName ?? initialDept;
   const doc = data?.doctorName ?? initialDoc;
+  const room = data?.roomNumber || roomNumber || "Room not assigned";
   const aheadCount = data?.aheadCount ?? initialAheadCount;
   const status = data?.status || "WAITING";
   const eta = data?.estimatedWait ?? (initialAheadCount * 12);
@@ -102,35 +103,12 @@ export function LiveQueueHero({
           </div>
 
           <div>
-            {isCalled ? (
-              <div className="space-y-2">
-                <h2 className="text-3xl sm:text-4xl font-black tracking-tighter text-primary">
-                  IT'S YOUR TURN!
-                </h2>
-                <p className="text-sm font-medium text-foreground/80">
-                  Please proceed to <span className="font-bold text-primary underline underline-offset-4 decoration-2">Room {roomNumber}</span> immediately. 
-                  Dr. {doc} is waiting for you.
-                </p>
-              </div>
-            ) : isNoShow ? (
-              <div className="space-y-2 text-orange-600">
-                <h2 className="text-3xl font-black tracking-tighter flex items-center gap-3">
-                  <AlertTriangle className="h-8 w-8" /> NO SHOW
-                </h2>
-                <p className="text-sm font-medium">
-                  You missed your turn. Please contact the reception desk to reschedule or reactivate your token.
-                </p>
-              </div>
-            ) : (
-              <>
-                <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">
-                  You are <span className="text-gradient-emerald">#{aheadCount}</span> in queue
-                </h2>
-                <p className="text-sm text-muted-foreground mt-2 font-medium">
-                  Estimated wait: <span className="text-foreground font-black">~{Math.round(eta)} min</span> · {doc} · Room {roomNumber}
-                </p>
-              </>
-            )}
+            <div className="text-3xl sm:text-4xl font-bold">
+              You are <span className="text-gradient-emerald">#{aheadCount}</span> in queue
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">
+              Estimated wait <span className="text-foreground font-semibold">~{Math.round(eta)} min</span> · {doc} · {room === "Room not assigned" ? room : `Room ${room}`}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3 pt-2">

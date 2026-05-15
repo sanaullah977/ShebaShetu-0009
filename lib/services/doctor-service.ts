@@ -65,7 +65,7 @@ async function getAverageWaitTime(doctorId: string) {
     include: { queueToken: true }
   });
 
-  if (completedAppts.length === 0) return "N/A";
+  if (completedAppts.length === 0) return "00m";
 
   const totalWait = completedAppts.reduce((acc, appt) => {
     if (appt.queueToken?.calledAt) {
@@ -75,8 +75,8 @@ async function getAverageWaitTime(doctorId: string) {
     return acc;
   }, 0);
 
-  const avgMinutes = Math.round(totalWait / completedAppts.length / 60000);
-  return `${avgMinutes}m`;
+  const avgMinutes = Math.max(0, Math.round(totalWait / completedAppts.length / 60000));
+  return `${String(avgMinutes).padStart(2, "0")}m`;
 }
 
 export async function getDoctorAppointments(userId: string) {
@@ -99,6 +99,8 @@ export async function getDoctorAppointments(userId: string) {
           }
         }
       },
+      department: { select: { name: true } },
+      hospital: { select: { name: true } },
       queueToken: true
     },
     orderBy: {

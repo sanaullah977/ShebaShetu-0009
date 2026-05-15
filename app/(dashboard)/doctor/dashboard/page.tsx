@@ -3,16 +3,13 @@ import { redirect } from "next/navigation";
 import { GlassCard } from "@/components/GlassCard";
 import { 
   ClipboardList, Calendar, Users, 
-  ArrowUpRight, Clock, CheckCircle2, User
+  ArrowUpRight, Clock, CheckCircle2
 } from "lucide-react";
 import Link from "next/link";
-import { getDoctorStats, getDoctorAppointments, getActiveAppointment, getDoctorAvailability } from "@/lib/services/doctor-service";
-import { format } from "date-fns";
-import { StatusPill } from "@/components/StatusPill";
+import { getDoctorStats, getDoctorAppointments, getActiveAppointment, getDoctorAvailability, getPatientHistory } from "@/lib/services/doctor-service";
 import { ActiveSession } from "@/components/doctor/ActiveSession";
-import { startAppointment } from "@/app/actions/doctor";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { DoctorQueueList } from "@/components/doctor/DoctorQueueList";
 
 export default async function DoctorDashboard() {
   const session = await auth();
@@ -26,9 +23,8 @@ export default async function DoctorDashboard() {
     getDoctorAvailability(userId)
   ]);
 
-  let patientHistory: any[] = [];
+  let patientHistory: Awaited<ReturnType<typeof getPatientHistory>> = [];
   if (activeAppointment) {
-    const { getPatientHistory } = await import("@/lib/services/doctor-service");
     patientHistory = await getPatientHistory(activeAppointment.patientId);
   }
 
@@ -90,45 +86,10 @@ export default async function DoctorDashboard() {
             </Link>
           </div>
           
-          <div className="space-y-3">
-            {appointments.length > 0 ? (
-              appointments.map((apt) => (
-                <div key={apt.id} className="glass rounded-xl p-4 flex items-center justify-between group hover:bg-sidebar-accent/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-secondary grid place-items-center">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">{apt.patient.user.name}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Clock className="h-3 w-3" /> {format(new Date(apt.scheduledAt), "h:mm a")}
-                        {apt.queueToken && <span className="ml-2 font-bold text-primary">Token {apt.queueToken.tokenNumber}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <StatusPill status={apt.status.toLowerCase() as any} />
-                    {!activeAppointment && (
-                      <form action={async () => {
-                        "use server"
-                        await startAppointment(apt.id);
-                      }}>
-                        <Button size="sm" className="h-8 rounded-lg bg-primary text-[10px] font-bold uppercase tracking-wider px-3">
-                          Start Checkup
-                        </Button>
-                      </form>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="py-12 text-center opacity-40">
-                <ClipboardList className="h-10 w-10 mx-auto mb-3" />
-                <p className="text-sm">No patients waiting in queue.</p>
-              </div>
-            )}
-          </div>
+          <DoctorQueueList
+            appointments={JSON.parse(JSON.stringify(appointments))}
+            hasActiveAppointment={!!activeAppointment}
+          />
         </GlassCard>
 
         <GlassCard>

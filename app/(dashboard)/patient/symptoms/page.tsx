@@ -41,6 +41,8 @@ function SymptomsContent() {
     if (searchParams.get("symptom")) {
       analyze();
     }
+    // Only auto-run once for the incoming query string; manual edits are submitted by the button.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -79,8 +81,13 @@ function SymptomsContent() {
                 <Stethoscope className="h-7 w-7" />
               </div>
               <div>
-                <div className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground">Recommended Dept.</div>
-                <div className="text-2xl font-black tracking-tight">{suggestion.department}</div>
+                <div className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground">Recommended Specialization</div>
+                <div className="text-2xl font-black tracking-tight">{suggestion.specialization || suggestion.department}</div>
+                {suggestion.requestedSpecialization && (
+                  <div className="text-[11px] text-muted-foreground mt-1">
+                    Nearest available match for {suggestion.requestedSpecialization}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -100,9 +107,36 @@ function SymptomsContent() {
                 </div>
               )}
 
-              <Link href={`/patient/booking?dept=${encodeURIComponent(suggestion.department)}`} className="block pt-2">
+              <div className="space-y-2">
+                <div className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Doctor Matches</div>
+                {suggestion.doctors?.length > 0 ? (
+                  <div className="grid gap-2">
+                    {suggestion.doctors.map((doctor: any) => (
+                      <div key={doctor.id} className="glass rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-bold">{doctor.name || "Doctor"}</div>
+                          <div className="text-[11px] text-muted-foreground">{doctor.specialization}</div>
+                        </div>
+                        <div className="text-[10px] text-primary font-black uppercase tracking-widest">
+                          {doctor.consultationFee ? `${doctor.consultationFee} BDT` : "Available"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="glass rounded-xl p-3 text-xs text-muted-foreground">
+                    No matching doctor is currently available. You can still start with General Medicine or contact support for guidance.
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {suggestion.disclaimer}
+              </p>
+
+              <Link href={`/patient/booking?dept=${encodeURIComponent(suggestion.specialization || suggestion.department)}`} className="block pt-2">
                 <Button className="w-full bg-primary text-primary-foreground h-12 font-bold rounded-xl shadow-glow active:scale-[0.98] transition-transform">
-                  Book with {suggestion.department} Specialist
+                  Book with {suggestion.specialization || suggestion.department} Specialist
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>

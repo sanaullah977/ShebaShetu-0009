@@ -71,7 +71,7 @@ export default async function PatientDashboard() {
             tokenNumber={activeQueue.queueToken?.tokenNumber}
             departmentName={activeQueue.department.name}
             doctorName={activeQueue.doctor.user.name || "Doctor"}
-            roomNumber={activeQueue.doctor.roomNumber || "Assigning..."}
+            roomNumber={(activeQueue.doctor as any).roomNumber || "Room not assigned"}
             initialAheadCount={activeQueue.queueToken?.position ? activeQueue.queueToken.position - 1 : 0}
           />
         ) : (

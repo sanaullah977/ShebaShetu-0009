@@ -2,7 +2,15 @@ import { prisma } from "@/lib/db";
 import { AppointmentStatus, QueueStatus } from "@prisma/client";
 import { startOfDay, endOfDay } from "date-fns";
 
-export async function getReceptionStats() {
+export async function getReceptionHospitalId(userId: string) {
+  const profile = await prisma.receptionProfile.findUnique({
+    where: { userId },
+    select: { hospitalId: true },
+  });
+  return profile?.hospitalId ?? null;
+}
+
+export async function getReceptionStats(hospitalId?: string | null) {
   const today = new Date();
   const start = startOfDay(today);
   const end = endOfDay(today);
@@ -13,6 +21,7 @@ export async function getReceptionStats() {
       where: {
         appointments: {
           some: {
+            ...(hospitalId ? { hospitalId } : {}),
             scheduledAt: { gte: start, lte: end },
             queueToken: {
               status: { in: [QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_PROGRESS] }
@@ -24,12 +33,14 @@ export async function getReceptionStats() {
     // Total Tokens issued today
     prisma.queueToken.count({
       where: {
-        createdAt: { gte: start, lte: end }
+        createdAt: { gte: start, lte: end },
+        ...(hospitalId ? { appointment: { hospitalId } } : {}),
       }
     }),
     // Appointments Remaining: PENDING or CONFIRMED for today
     prisma.appointment.count({
       where: {
+        ...(hospitalId ? { hospitalId } : {}),
         scheduledAt: { gte: start, lte: end },
         status: { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] }
       }
@@ -37,7 +48,8 @@ export async function getReceptionStats() {
     // Staff Active: Just a count of doctors for now as a placeholder for "Staff Active"
     prisma.doctorProfile.count({
       where: {
-        user: { isActive: true }
+        user: { isActive: true },
+        ...(hospitalId ? { departments: { some: { hospitalId } } } : {}),
       }
     })
   ]);
@@ -50,9 +62,10 @@ export async function getReceptionStats() {
   };
 }
 
-export async function getRecentCheckIns(limit = 5) {
+export async function getRecentCheckIns(limit = 5, hospitalId?: string | null) {
   return prisma.appointment.findMany({
     where: {
+      ...(hospitalId ? { hospitalId } : {}),
       status: { in: [AppointmentStatus.CHECKED_IN, AppointmentStatus.IN_PROGRESS] }
     },
     include: {
@@ -79,10 +92,11 @@ export async function getQueueMovements() {
   });
 }
 
-export async function getActiveDoctors() {
+export async function getActiveDoctors(hospitalId?: string | null) {
   return prisma.doctorProfile.findMany({
     where: {
-      user: { isActive: true }
+      user: { isActive: true },
+      ...(hospitalId ? { departments: { some: { hospitalId } } } : {}),
     },
     include: {
       user: true,
@@ -91,12 +105,13 @@ export async function getActiveDoctors() {
   });
 }
 
-export async function getPendingCheckIns() {
+export async function getPendingCheckIns(hospitalId?: string | null) {
   const start = startOfDay(new Date());
   const end = endOfDay(new Date());
 
   return prisma.appointment.findMany({
     where: {
+      ...(hospitalId ? { hospitalId } : {}),
       scheduledAt: { gte: start, lte: end },
       status: { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] }
     },
@@ -109,12 +124,13 @@ export async function getPendingCheckIns() {
   });
 }
 
-export async function getFullQueue() {
+export async function getFullQueue(hospitalId?: string | null) {
   const start = startOfDay(new Date());
   const end = endOfDay(new Date());
 
   return prisma.appointment.findMany({
     where: {
+      ...(hospitalId ? { hospitalId } : {}),
       scheduledAt: { gte: start, lte: end },
       queueToken: { isNot: null }
     },
@@ -129,13 +145,17 @@ export async function getFullQueue() {
   });
 }
 
-export async function getDoctorsWithSchedules() {
+export async function getDoctorsWithSchedules(hospitalId?: string | null) {
   return prisma.doctorProfile.findMany({
+    where: {
+      ...(hospitalId ? { departments: { some: { hospitalId } } } : {}),
+    },
     include: {
       user: true,
       schedules: {
         where: {
-          startTime: { gte: new Date() }
+          startTime: { gte: new Date() },
+          ...(hospitalId ? { hospitalId } : {}),
         },
         include: {
           appointment: {

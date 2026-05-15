@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 import {
   Home, Stethoscope, CalendarDays, Activity, FolderHeart, Sparkles,
-  ListChecks, Users2, CalendarRange, ClipboardList, LifeBuoy, Settings,
+  ListChecks, Users2, CalendarRange, ClipboardList, LifeBuoy, Settings, MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,12 +31,18 @@ const DOCTOR: Item[] = [
   { to: "/doctor/schedule",     label: "Schedule",      icon: CalendarDays },
 ];
 
+const ADMIN: Item[] = [
+  { to: "/admin/support", label: "Support Desk", icon: MessageSquare },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
+];
+
 interface SidebarProps {
-  role: "PATIENT" | "RECEPTION" | "DOCTOR" | "ADMIN";
+  role: "PATIENT" | "RECEPTION" | "DOCTOR" | "ADMIN" | "SUPER_ADMIN";
 }
 
 export function useNavItems(role: SidebarProps["role"]) {
-  if (role === "RECEPTION" || role === "ADMIN") return RECEPTION;
+  if (role === "ADMIN" || role === "SUPER_ADMIN") return ADMIN;
+  if (role === "RECEPTION") return RECEPTION;
   if (role === "DOCTOR") return DOCTOR;
   return PATIENT;
 }
@@ -85,7 +91,7 @@ export function Sidebar({ role }: SidebarProps) {
           Reach our 24/7 hospital coordination desk for any visit.
         </p>
         <Link 
-          href={`/${role.toLowerCase()}/support`}
+          href={roleSupportPath(role)}
           className="w-full block"
         >
           <button className="w-full rounded-lg bg-gradient-emerald text-primary-foreground text-xs font-semibold py-2 shadow-glow">
@@ -97,12 +103,22 @@ export function Sidebar({ role }: SidebarProps) {
       <div className="px-3 py-3 border-t border-border/60 flex items-center gap-2 text-[11px] text-muted-foreground">
         <LifeBuoy className="h-3.5 w-3.5" />
         <span>v1.0 · Next.js migration</span>
-        <Link href={`/${role.toLowerCase()}/settings`} className="ml-auto">
+        <Link href={roleSettingsPath(role)} className="ml-auto">
           <Settings className="h-3.5 w-3.5 hover:text-foreground cursor-pointer" />
         </Link>
       </div>
     </aside>
   );
+}
+
+function roleSupportPath(role: SidebarProps["role"]) {
+  if (role === "ADMIN" || role === "SUPER_ADMIN") return "/admin/support";
+  return `/${role.toLowerCase()}/support`;
+}
+
+function roleSettingsPath(role: SidebarProps["role"]) {
+  if (role === "ADMIN" || role === "SUPER_ADMIN") return "/admin/settings";
+  return `/${role.toLowerCase()}/settings`;
 }
 
 export function MobileNav({ role }: SidebarProps) {

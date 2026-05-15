@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { 
   Dialog, DialogContent, DialogDescription, 
-  DialogHeader, DialogTitle, DialogFooter 
+  DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Search, User, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { Search, User, Clock, Loader2 } from "lucide-react";
 import { checkInPatient } from "@/app/actions/reception";
 import { toast } from "sonner";
 
@@ -14,9 +14,17 @@ interface CheckInModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pendingAppointments: any[];
+  onQueueChange?: (queue: any[]) => void;
+  onPendingAppointmentsChange?: (appointments: any[]) => void;
 }
 
-export function CheckInModal({ open, onOpenChange, pendingAppointments }: CheckInModalProps) {
+export function CheckInModal({
+  open,
+  onOpenChange,
+  pendingAppointments,
+  onQueueChange,
+  onPendingAppointmentsChange,
+}: CheckInModalProps) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -35,7 +43,9 @@ export function CheckInModal({ open, onOpenChange, pendingAppointments }: CheckI
     try {
       const res = await checkInPatient(id);
       if (res.success) {
-        toast.success(`Checked in! Token: ${res.token?.tokenNumber}`);
+        if (res.queue) onQueueChange?.(res.queue);
+        if (res.pendingAppointments) onPendingAppointmentsChange?.(res.pendingAppointments);
+        toast.success(`Checked in! Token: ${res.tokenNumber}`);
         onOpenChange(false);
       } else {
         toast.error(res.error || "Failed to check in");

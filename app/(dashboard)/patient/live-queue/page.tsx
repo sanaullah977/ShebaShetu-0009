@@ -28,7 +28,7 @@ export default async function LiveQueuePage() {
             tokenNumber={activeQueue.queueToken?.tokenNumber}
             departmentName={activeQueue.department.name}
             doctorName={activeQueue.doctor.user.name || "Doctor"}
-            roomNumber={(activeQueue.doctor as any).roomNumber || "204"}
+            roomNumber={(activeQueue.doctor as any).roomNumber || "Room not assigned"}
             initialAheadCount={activeQueue.queueToken?.position ? activeQueue.queueToken.position - 1 : 0}
           />
 

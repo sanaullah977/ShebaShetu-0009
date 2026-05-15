@@ -23,5 +23,11 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "legacy-vite"]
+  "exclude": [
+    "node_modules",
+    "legacy-vite",
+    "components/NavLink.tsx",
+    "components/RolePlaceholder.tsx",
+    "lib/role-store.tsx"
+  ]
 }

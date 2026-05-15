@@ -13,9 +13,9 @@ export default async function SettingsPage() {
     prisma.user.findUnique({
       where: { id: userId },
       select: { 
-        id: true, name: true, email: true, image: true,
+        id: true, name: true, email: true, phone: true, image: true, role: true,
         doctorProfile: {
-          select: { specialization: true, consultationFee: true }
+          select: { specialization: true, consultationFee: true, roomNumber: true }
         }
       }
     }),

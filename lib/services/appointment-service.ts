@@ -22,6 +22,74 @@ export const getCachedDepartments = unstable_cache(
   { tags: ["departments"], revalidate: 3600 }
 );
 
+export async function getBookingOptions() {
+  const now = new Date();
+  const hospitals = await prisma.hospital.findMany({
+    select: { id: true, name: true, address: true }
+  });
+  const hospitalById = new Map(hospitals.map((hospital) => [hospital.id, hospital]));
+  const hospitalIds = hospitals.map((hospital) => hospital.id);
+
+  const doctors = await prisma.doctorProfile.findMany({
+    where: {
+      user: { isActive: true },
+    },
+    include: {
+      user: {
+        select: { id: true, name: true, image: true }
+      },
+      departments: {
+        select: {
+          id: true,
+          name: true,
+          hospitalId: true,
+        }
+      },
+      schedules: {
+        where: {
+          startTime: { gte: now },
+          hospitalId: { in: hospitalIds },
+          isAvailable: true,
+        },
+        select: {
+          id: true,
+          hospitalId: true,
+          startTime: true,
+          endTime: true,
+          isAvailable: true,
+          isBooked: true,
+          appointment: {
+            select: { id: true, status: true }
+          }
+        },
+        orderBy: { startTime: "asc" }
+      }
+    }
+  });
+
+  return doctors.map((doctor) => ({
+    id: doctor.id,
+    user: doctor.user,
+    specialization: doctor.specialization,
+    consultationFee: doctor.consultationFee,
+    roomNumber: doctor.roomNumber,
+    departments: doctor.departments.map((department) => ({
+      id: department.id,
+      name: department.name,
+      hospital: department.hospitalId ? hospitalById.get(department.hospitalId) ?? null : null,
+    })),
+    schedules: doctor.schedules.map((slot) => ({
+      id: slot.id,
+      hospitalId: slot.hospitalId,
+      startTime: slot.startTime.toISOString(),
+      endTime: slot.endTime.toISOString(),
+      isAvailable: slot.isAvailable,
+      isBooked: slot.isBooked || !!slot.appointment,
+      hospital: hospitalById.get(slot.hospitalId) ?? null,
+    }))
+  }));
+}
+
 // Cache patient ID to avoid redundant lookups
 const getPatientId = async (userId: string) => {
   const patient = await prisma.patientProfile.findUnique({
@@ -53,6 +121,25 @@ export async function getUpcomingAppointments(userId: string, limit = 10) {
     },
     orderBy: { scheduledAt: 'asc' },
     take: limit
+  });
+}
+
+export async function getAllAppointments(userId: string) {
+  const patientId = await getPatientId(userId);
+  if (!patientId) return [];
+
+  return await prisma.appointment.findMany({
+    where: { patientId },
+    include: {
+      doctor: {
+        include: {
+          user: { select: { name: true, image: true } }
+        }
+      },
+      department: { select: { name: true } },
+      queueToken: { select: { tokenNumber: true, position: true } }
+    },
+    orderBy: { scheduledAt: "desc" }
   });
 }
 

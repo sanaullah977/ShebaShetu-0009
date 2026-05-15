@@ -20,6 +20,16 @@ export function QueueContent({ queue, pendingAppointments, movements }: QueueCon
   const router = useRouter();
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const [view, setView] = useState<"live" | "movements">("live");
+  const [queueItems, setQueueItems] = useState(queue);
+  const [pendingItems, setPendingItems] = useState(pendingAppointments);
+
+  useEffect(() => {
+    setQueueItems(queue);
+  }, [queue]);
+
+  useEffect(() => {
+    setPendingItems(pendingAppointments);
+  }, [pendingAppointments]);
 
   useEffect(() => {
     if (searchParams.get("action") === "checkin") {
@@ -83,7 +93,7 @@ export function QueueContent({ queue, pendingAppointments, movements }: QueueCon
 
       <div className="min-h-[60vh]">
         {view === "live" ? (
-          <QueueManager queue={queue} />
+          <QueueManager queue={queueItems} onQueueChange={setQueueItems} />
         ) : (
           <QueueMovements movements={movements} />
         )}
@@ -92,7 +102,9 @@ export function QueueContent({ queue, pendingAppointments, movements }: QueueCon
       <CheckInModal 
         open={isCheckInOpen} 
         onOpenChange={closeCheckIn} 
-        pendingAppointments={pendingAppointments} 
+        pendingAppointments={pendingItems}
+        onQueueChange={setQueueItems}
+        onPendingAppointmentsChange={setPendingItems}
       />
     </div>
   );

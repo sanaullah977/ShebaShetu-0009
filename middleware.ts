@@ -4,6 +4,13 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
+function roleHome(role?: string) {
+  if (role === "DOCTOR") return "/doctor/dashboard";
+  if (role === "RECEPTION") return "/reception/dashboard";
+  if (role === "ADMIN" || role === "SUPER_ADMIN") return "/admin/support";
+  return "/patient/dashboard";
+}
+
 export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
@@ -26,8 +33,7 @@ export default auth((req) => {
   // 3. Handle Public Routes
   if (isPublicRoute) {
     if (isLoggedIn && role) {
-      // Redirect to respective dashboard if already logged in
-      return NextResponse.redirect(new URL(`/${role.toLowerCase()}/dashboard`, nextUrl));
+      return NextResponse.redirect(new URL(roleHome(role), nextUrl));
     }
     return NextResponse.next();
   }

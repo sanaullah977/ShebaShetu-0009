@@ -15,6 +15,7 @@ import {
 import { signOut } from "next-auth/react";
 import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 import Link from "next/link";
 
@@ -28,6 +29,8 @@ interface TopBarProps {
 
 export function TopBar({ user }: TopBarProps) {
   const { notifications, unreadCount, markRead } = useNotifications();
+  const settingsPath = rolePath(user.role, "settings");
+  const supportPath = rolePath(user.role, "support");
 
   const initials = user.name
     ?.split(" ")
@@ -118,10 +121,10 @@ export function TopBar({ user }: TopBarProps) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="cursor-pointer">
-                <Link href={`/${user.role?.toLowerCase()}/settings`}>Profile settings</Link>
+                <Link href={settingsPath}>Profile settings</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="cursor-pointer">
-                <Link href={`/${user.role?.toLowerCase()}/support`}>Help & support</Link>
+                <Link href={supportPath}>Help & support</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-destructive focus:bg-destructive/10">
@@ -133,4 +136,11 @@ export function TopBar({ user }: TopBarProps) {
       </div>
     </header>
   );
+}
+
+function rolePath(role: string | undefined, area: "settings" | "support") {
+  if (role === "ADMIN" || role === "SUPER_ADMIN") return `/admin/${area}`;
+  if (role === "DOCTOR") return `/doctor/${area}`;
+  if (role === "RECEPTION") return `/reception/${area}`;
+  return `/patient/${area}`;
 }
