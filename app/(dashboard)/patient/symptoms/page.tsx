@@ -177,8 +177,8 @@ export default function SymptomsPage() {
 
       <Suspense fallback={
         <div className="grid md:grid-cols-2 gap-8 opacity-50 animate-pulse">
-           <GlassCard className="h-[300px] bg-muted" />
-           <GlassCard className="h-[300px] bg-muted" />
+           <GlassCard className="h-[300px] bg-muted"><div /></GlassCard>
+           <GlassCard className="h-[300px] bg-muted"><div /></GlassCard>
         </div>
       }>
         <SymptomsContent />

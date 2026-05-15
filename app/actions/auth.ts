@@ -33,7 +33,8 @@ export async function register(formData: FormData) {
       };
     }
 
-    const { name, email, password, role } = validated.data;
+    const { name, password, role } = validated.data;
+    const email = validated.data.email.toLowerCase();
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({

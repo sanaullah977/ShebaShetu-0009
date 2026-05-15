@@ -4,7 +4,12 @@ import { useMemo, useState } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { StatusPill } from "@/components/StatusPill";
 import { format } from "date-fns";
-import { CalendarDays, Clock, Search, Filter, ChevronRight, XCircle } from "lucide-react";
+import { 
+  CalendarDays, Clock, Search, Filter, 
+  ChevronRight, XCircle, MoreVertical,
+  Trash2, Info, Loader2, Stethoscope,
+  ClipboardList, Pill
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +48,19 @@ export function PatientAppointments({ initialAppointments }: PatientAppointments
     
     return true;
   }), [initialAppointments, search, filter]);
+
+  const handleCancel = async (id: string) => {
+    if (!confirm("Are you sure you want to cancel this appointment?")) return;
+    
+    startTransition(async () => {
+      const result = await cancelAppointment(id);
+      if (result.success) {
+        toast.success("Appointment cancelled.");
+      } else {
+        toast.error(result.error || "Failed to cancel.");
+      }
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -178,3 +196,4 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

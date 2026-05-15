@@ -162,7 +162,7 @@ export async function checkInPatient(appointmentId: string) {
     };
   } catch (error) {
     console.error("Check-in error:", error);
-    return { success: false, error: "Failed to process check-in" };
+    return { success: false, error: "Failed to check in patient" };
   }
 }
 
@@ -215,6 +215,7 @@ export async function updateQueueStatus(tokenId: string, status: QueueStatus) {
     revalidateReceptionQueue();
     return { success: true, queue: await getQueuePayload(scope.hospitalId) };
   } catch (error) {
+    console.error("Update queue status error:", error);
     return { success: false, error: "Failed to update queue status" };
   }
 }

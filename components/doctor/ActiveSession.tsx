@@ -59,6 +59,8 @@ export function ActiveSession({ appointment, history = [] }: ActiveSessionProps)
     }
   };
 
+  const patient = appointment.patient;
+
   return (
     <GlassCard className="border-primary/20 shadow-glow bg-primary/5">
       <div className="flex flex-col md:flex-row gap-8">
@@ -99,43 +101,43 @@ export function ActiveSession({ appointment, history = [] }: ActiveSessionProps)
           {!showHistory ? (
             <form onSubmit={onComplete} className="space-y-5">
               <div className="space-y-2">
-                <label className="text-xs font-semibold flex items-center gap-2 text-foreground/80">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1 flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" /> Clinical Notes
                 </label>
                 <textarea 
                   name="notes"
                   rows={4}
-                  className="w-full glass rounded-xl p-4 text-sm outline-none focus:ring-1 focus:ring-primary/40 resize-none bg-background/40"
-                  placeholder="Observe symptoms, diagnosis details..."
+                  className="w-full bg-background/50 border border-border/40 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all resize-none"
+                  placeholder="Observe symptoms, diagnosis details, clinical findings..."
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold flex items-center gap-2 text-foreground/80">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1 flex items-center gap-2">
                   <Pill className="h-4 w-4 text-primary" /> Prescription
                 </label>
                 <textarea 
                   name="prescription"
                   rows={3}
-                  className="w-full glass rounded-xl p-4 text-sm outline-none focus:ring-1 focus:ring-primary/40 resize-none bg-background/40"
-                  placeholder="Medicine names, dosage, duration..."
+                  className="w-full bg-background/50 border border-border/40 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all resize-none"
+                  placeholder="Medicine names, dosage, duration, special instructions..."
                   required
                 />
               </div>
 
               <Button 
                 disabled={loading} 
-                className="w-full bg-primary text-primary-foreground h-12 text-base font-bold shadow-glow"
+                className="w-full bg-primary text-primary-foreground h-14 text-base font-black shadow-glow rounded-2xl transition-all active:scale-[0.98]"
               >
                 {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
-                Complete Checkup & Save
+                Complete Checkup & Issue Prescription
               </Button>
             </form>
           ) : (
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
-              <h4 className="text-sm font-bold flex items-center gap-2 mb-4">
-                <History className="h-4 w-4 text-primary" /> Previous Visits ({history.length})
+              <h4 className="text-sm font-black flex items-center gap-2 mb-4 uppercase tracking-widest text-primary">
+                <History className="h-4 w-4" /> Previous Visits ({history.length})
               </h4>
               {history.length > 0 ? (
                 history.map((h: any) => (
@@ -145,21 +147,22 @@ export function ActiveSession({ appointment, history = [] }: ActiveSessionProps)
                       <div className="text-[9px] uppercase text-muted-foreground tracking-wider">Dr. {h.doctor?.user?.name?.split(" ").pop() || "Unknown"}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase font-bold text-muted-foreground/60 mb-1">Diagnosis/Notes</div>
+                      <div className="text-[9px] uppercase font-black text-muted-foreground/60 mb-2 tracking-widest">Diagnosis/Notes</div>
                       <p className="text-xs text-muted-foreground italic leading-relaxed">"{h.clinicalNotes}"</p>
                     </div>
-                    <div>
-                      <div className="text-[10px] uppercase font-bold text-muted-foreground/60 mb-1 flex items-center gap-1">
+                    <div className="pt-2">
+                      <div className="text-[9px] uppercase font-black text-primary/60 mb-2 flex items-center gap-1.5 tracking-widest">
                         <Pill className="h-3 w-3" /> Prescription
                       </div>
-                      <p className="text-xs font-medium text-foreground/80">{h.prescription}</p>
+                      <p className="text-xs font-bold text-foreground/80 leading-relaxed bg-primary/5 p-3 rounded-xl border border-primary/10">{h.prescription}</p>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="py-20 text-center opacity-40">
-                  <History className="h-10 w-10 mx-auto mb-3" />
-                  <p className="text-sm">No previous medical history found.</p>
+                  <History className="h-12 w-12 mx-auto mb-4" />
+                  <div className="text-sm font-bold">No previous records</div>
+                  <p className="text-xs mt-1">This patient has no completed appointments yet.</p>
                 </div>
               )}
             </div>
@@ -185,9 +188,12 @@ export function ActiveSession({ appointment, history = [] }: ActiveSessionProps)
             </div>
           </div>
           
-          <div className="p-5 glass rounded-2xl bg-orange-500/5 border border-orange-500/10">
-            <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-orange-500 tracking-widest mb-3">
-              <Activity className="h-3.5 w-3.5" />
+          <div className="p-6 glass border-orange-500/20 rounded-3xl bg-orange-500/5 shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-2 opacity-5 group-hover:opacity-10 transition-opacity">
+               <Activity className="h-16 w-16" />
+            </div>
+            <div className="flex items-center gap-2 text-[10px] uppercase font-black text-orange-500 tracking-widest mb-4">
+              <Activity className="h-4 w-4" />
               Primary Symptoms
             </div>
             <p className="text-xs leading-relaxed italic text-foreground/70">

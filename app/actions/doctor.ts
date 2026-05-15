@@ -294,3 +294,36 @@ export async function deleteScheduleSlot(slotId: string) {
     return { success: false, error: "Failed to delete slot" };
   }
 }
+
+export async function getPatientReportsForDoctor(patientId: string) {
+  const session = await auth();
+  if (!session?.user || (session.user as any).role !== "DOCTOR") {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  const doctorUserId = (session.user as any).id;
+
+  try {
+    // SECURITY: Ensure this doctor has an active or past appointment with this patient
+    const hasAccess = await prisma.appointment.findFirst({
+      where: {
+        patientId,
+        doctor: { userId: doctorUserId },
+      }
+    });
+
+    if (!hasAccess) {
+      return { success: false, error: "Unauthorized access to patient reports" };
+    }
+
+    const reports = await prisma.report.findMany({
+      where: { patientId },
+      orderBy: { uploadedAt: "desc" }
+    });
+
+    return { success: true, reports };
+  } catch (error) {
+    console.error("Get patient reports error:", error);
+    return { success: false, error: "Failed to fetch reports" };
+  }
+}

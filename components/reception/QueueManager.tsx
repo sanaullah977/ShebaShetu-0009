@@ -99,6 +99,16 @@ export function QueueManager({ queue, onQueueChange }: QueueManagerProps) {
         </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
           <Button 
+            variant="outline" 
+            size="sm" 
+            className="rounded-xl text-xs h-9 px-4 font-bold bg-primary/5 border-primary/20 text-primary hover:bg-primary/10"
+            onClick={handleCallNext}
+            disabled={isPending}
+          >
+            <BellRing className="h-4 w-4 mr-2" /> Call Next
+          </Button>
+          <div className="h-6 w-px bg-border/40 mx-1" />
+          <Button 
             variant={statusFilter === null ? "default" : "outline"} 
             size="sm" 
             className="rounded-xl text-xs h-9 px-4 font-semibold transition-all"
@@ -131,9 +141,15 @@ export function QueueManager({ queue, onQueueChange }: QueueManagerProps) {
       <div className="grid gap-4">
         {filtered.length > 0 ? (
           filtered.map((apt) => (
-            <GlassCard key={apt.id} className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 group hover:border-primary/20 transition-all duration-300">
+            <GlassCard key={apt.id} className={cn(
+              "p-4 flex flex-col sm:flex-row items-center justify-between gap-4 group transition-all duration-300",
+              apt.queueToken?.status === "CALLED" ? "border-primary/40 bg-primary/5 shadow-glow-sm" : "hover:border-primary/20"
+            )}>
               <div className="flex items-center gap-5 w-full sm:w-auto">
-                <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/20 flex flex-col items-center justify-center text-primary group-hover:scale-105 transition-transform duration-500">
+                <div className={cn(
+                  "h-16 w-16 rounded-2xl border flex flex-col items-center justify-center transition-all duration-500",
+                  apt.queueToken?.status === "CALLED" ? "bg-primary text-primary-foreground border-primary" : "bg-primary/10 border-primary/20 text-primary group-hover:scale-105"
+                )}>
                   <span className="text-[10px] uppercase font-bold tracking-widest opacity-60">Token</span>
                   <span className="text-xl font-black">{apt.queueToken?.tokenNumber}</span>
                 </div>
@@ -152,9 +168,9 @@ export function QueueManager({ queue, onQueueChange }: QueueManagerProps) {
                     {apt.queueToken?.calledAt && (
                       <>
                         <span className="opacity-30">•</span>
-                        <span className="flex items-center gap-1 text-primary/70">
-                          <ArrowRightLeft className="h-3 w-3" />
-                          Called at {typeof window !== 'undefined' && new Date(apt.queueToken.calledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <span className="flex items-center gap-1 text-primary/70 font-bold">
+                          <BellRing className="h-3 w-3" />
+                          Called {format(new Date(apt.queueToken.calledAt), "h:mm a")}
                         </span>
                       </>
                     )}
@@ -228,17 +244,17 @@ export function QueueManager({ queue, onQueueChange }: QueueManagerProps) {
             </GlassCard>
           ))
         ) : (
-          <div className="py-24 flex flex-col items-center justify-center text-center glass rounded-[2rem] border-dashed border-border/60">
+          <div className="py-24 flex flex-col items-center justify-center text-center glass rounded-[2.5rem] border-dashed border-border/60">
             <div className="h-20 w-20 rounded-full bg-secondary/30 flex items-center justify-center mb-6">
               <Users2 className="h-10 w-10 text-muted-foreground/60" />
             </div>
-            <h3 className="text-lg font-bold">No matches found</h3>
-            <p className="text-sm text-muted-foreground max-w-[250px] mt-2">
-              Try adjusting your filters or search query to find the patient you're looking for.
+            <h3 className="text-lg font-bold">No matching records</h3>
+            <p className="text-sm text-muted-foreground max-w-[280px] mt-2">
+              We couldn't find any patients matching your current search or status filter.
             </p>
             {statusFilter && (
               <Button variant="link" onClick={() => setStatusFilter(null)} className="mt-4 text-primary font-bold">
-                Clear Status Filter
+                Clear Filters
               </Button>
             )}
           </div>

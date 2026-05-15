@@ -170,6 +170,8 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
     }
   };
 
+  const role = user.doctorProfile ? "Doctor" : user.patientProfile ? "Patient" : "Receptionist";
+
   return (
     <div className="grid gap-8">
       <GlassCard className="overflow-hidden border-border/40">

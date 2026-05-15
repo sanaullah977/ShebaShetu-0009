@@ -2,6 +2,7 @@
 
 import { Bell, Search } from "lucide-react";
 import { Logo } from "./Logo";
+import { cn } from "@/lib/utils";
 import { RoleBadge } from "./RoleBadge";
 import {
   DropdownMenu,

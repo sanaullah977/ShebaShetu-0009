@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { uploadToImgBB } from "@/lib/upload";
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
@@ -95,6 +96,7 @@ export async function updateProfile(data: z.infer<typeof profileSchema>) {
     
     revalidatePath("/patient/settings");
     revalidatePath("/doctor/settings");
+    revalidatePath("/patient/settings");
     revalidatePath("/reception/settings");
     revalidatePath("/patient/dashboard");
     revalidatePath("/doctor/dashboard");

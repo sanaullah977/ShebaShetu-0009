@@ -32,7 +32,18 @@ export default async function DoctorSchedulePage() {
     }
   });
 
-  if (!doctor) return <div>Doctor profile not found.</div>;
+  if (!doctor) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h2 className="text-xl font-bold">Doctor Profile Not Found</h2>
+        <p className="text-muted-foreground mt-2">Please contact administration to set up your profile.</p>
+      </div>
+    );
+  }
+
+  const hospitalId = doctor.departments[0]?.hospitalId;
+  const hasRoom = !!doctor.roomNumber && doctor.roomNumber.trim() !== "";
 
   const hospitalIds = Array.from(new Set([
     ...doctor.departments.map((department) => department.hospitalId).filter(Boolean),
@@ -67,10 +78,11 @@ export default async function DoctorSchedulePage() {
   }));
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-end justify-between">
+    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Slot Management</h1>
+          <div className="text-[10px] uppercase font-black tracking-widest text-primary/80 mb-1">Time Management</div>
+          <h1 className="text-3xl font-black tracking-tight">Slot Management</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Set your availability for assigned hospitals and manage patient booking slots.
           </p>
