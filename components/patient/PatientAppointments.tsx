@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import { StatusPill } from "@/components/StatusPill";
 import { format } from "date-fns";
-import { CalendarDays, Clock, Search, Filter, ChevronRight, XCircle } from "lucide-react";
+import { CalendarDays, Clock, Search, ChevronRight, XCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,11 +21,18 @@ export function PatientAppointments({ initialAppointments }: PatientAppointments
   const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
 
   const filtered = useMemo(() => initialAppointments.filter((apt) => {
-    const scheduledDate = format(new Date(apt.scheduledAt), "d MMM yyyy h:mm a").toLowerCase();
+    const scheduledAt = new Date(apt.scheduledAt);
+    const scheduledDate = [
+      format(scheduledAt, "d MMM yyyy h:mm a"),
+      format(scheduledAt, "yyyy-MM-dd"),
+      format(scheduledAt, "PPPP"),
+    ].join(" ").toLowerCase();
     const haystack = [
+      apt.id,
       apt.doctor?.user?.name,
       apt.doctor?.specialization,
       apt.department?.name,
+      apt.hospital?.name,
       apt.status,
       scheduledDate,
       apt.symptoms,
@@ -66,10 +73,20 @@ export function PatientAppointments({ initialAppointments }: PatientAppointments
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <input 
             placeholder="Search doctor, date, status, reason..."
-            className="w-full glass rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            className="w-full glass rounded-xl pl-10 pr-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+              aria-label="Clear appointment search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 

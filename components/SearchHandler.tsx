@@ -8,6 +8,7 @@ import { Loader2, Search, User, CalendarDays, Ticket, ArrowUpRight, CheckCircle2
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { errorMessage, parseJsonResponse } from "@/lib/http";
 
 export function SearchHandler() {
   const [query, setQuery] = useState("");
@@ -31,10 +32,11 @@ export function SearchHandler() {
     setLoading(true);
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
+      const data = await parseJsonResponse<{ results: any[] }>(res, "Search failed.");
       setResults(data.results || []);
     } catch (error) {
-      console.error(error);
+      console.error(errorMessage(error, "Search failed."));
+      setResults([]);
     } finally {
       setLoading(false);
     }

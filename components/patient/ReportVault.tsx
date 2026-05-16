@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { GlassCard } from "@/components/GlassCard";
 import {
   Search, FileText,
   Download, ExternalLink, Calendar,
-  Hash, XCircle
+  Hash, XCircle, X
 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -19,12 +19,31 @@ export function ReportVault({ initialReports }: ReportVaultProps) {
   const [search, setSearch] = useState("");
   const [reportType, setReportType] = useState("ALL");
 
-  const filtered = initialReports.filter((r) => {
-    const matchesSearch = r.title.toLowerCase().includes(search.toLowerCase()) ||
-      (r.fileName?.toLowerCase() || "").includes(search.toLowerCase());
+  const filtered = useMemo(() => initialReports.filter((r) => {
+    const needle = search.trim().toLowerCase();
+    const uploadDate = [
+      format(new Date(r.uploadedAt), "MMM d, yyyy"),
+      format(new Date(r.uploadedAt), "yyyy-MM-dd"),
+      format(new Date(r.uploadedAt), "PPPP"),
+    ].join(" ");
+    const appointmentText = (r.appointments || []).flatMap((appointment: any) => [
+      appointment.doctor?.user?.name,
+      appointment.doctor?.specialization,
+      appointment.department?.name,
+      appointment.symptoms,
+      appointment.clinicalNotes,
+    ]);
+    const haystack = [
+      r.title,
+      r.type,
+      r.fileName,
+      uploadDate,
+      ...appointmentText,
+    ].filter(Boolean).join(" ").toLowerCase();
+    const matchesSearch = !needle || haystack.includes(needle);
     const matchesType = reportType === "ALL" || r.type === reportType;
     return matchesSearch && matchesType;
-  });
+  }), [initialReports, reportType, search]);
 
   return (
     <div className="space-y-6">
@@ -32,11 +51,21 @@ export function ReportVault({ initialReports }: ReportVaultProps) {
         <div className="relative group flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <input
-            placeholder="Search by report name or filename..."
-            className="w-full glass rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            placeholder="Search title, type, doctor, date..."
+            className="w-full glass rounded-xl pl-10 pr-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+              aria-label="Clear report search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <SelectType value={reportType} onChange={setReportType} />
@@ -110,7 +139,7 @@ export function ReportVault({ initialReports }: ReportVaultProps) {
 function SelectType({ value, onChange }: { value: string, onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-1 glass p-1 rounded-xl">
-      {["ALL", "LAB", "IMAGING", "PRESCRIPTION"].map((t) => (
+      {["ALL", "LAB", "IMAGING", "PRESCRIPTION", "OTHER"].map((t) => (
         <button
           key={t}
           onClick={() => onChange(t)}

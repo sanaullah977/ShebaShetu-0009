@@ -1651,6 +1651,9 @@ h1,h2,h3,h4 { letter-spacing: -0.02em; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.whitespace-normal{
+  white-space: normal;
+}
 .whitespace-nowrap{
   white-space: nowrap;
 }
@@ -2292,6 +2295,9 @@ h1,h2,h3,h4 { letter-spacing: -0.02em; }
 }
 .pr-1{
   padding-right: 0.25rem;
+}
+.pr-10{
+  padding-right: 2.5rem;
 }
 .pr-11{
   padding-right: 2.75rem;

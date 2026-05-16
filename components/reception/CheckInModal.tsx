@@ -39,6 +39,7 @@ export function CheckInModal({
   });
 
   const handleCheckIn = async (id: string) => {
+    if (loading) return;
     setLoading(id);
     try {
       const res = await checkInPatient(id);

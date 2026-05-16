@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { parseJsonResponse } from "@/lib/http";
 
 export function useNotifications() {
   const queryClient = useQueryClient();
@@ -7,8 +8,7 @@ export function useNotifications() {
     queryKey: ["notifications"],
     queryFn: async () => {
       const res = await fetch("/api/notifications");
-      if (!res.ok) throw new Error("Failed to fetch notifications");
-      return res.json();
+      return parseJsonResponse(res, "Failed to fetch notifications");
     },
     refetchInterval: 30000, // Poll every 30 seconds
   });
@@ -17,9 +17,10 @@ export function useNotifications() {
     mutationFn: async (id: string) => {
       const res = await fetch("/api/notifications", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      return res.json();
+      return parseJsonResponse(res, "Failed to update notification");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });

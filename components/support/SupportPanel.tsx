@@ -40,6 +40,7 @@ export function SupportPanel({ initialTickets, intro }: SupportPanelProps) {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (pending) return;
     const trimmedSubject = subject.trim();
     const trimmedMessage = message.trim();
 

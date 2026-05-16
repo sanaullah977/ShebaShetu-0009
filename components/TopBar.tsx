@@ -15,9 +15,8 @@ import {
 import { signOut } from "next-auth/react";
 import { useNotifications } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
-// `cn` already imported above; removed duplicate import
-
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface TopBarProps {
   user: {
@@ -28,6 +27,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ user }: TopBarProps) {
+  const router = useRouter();
   const { notifications, unreadCount, markRead } = useNotifications();
   const settingsPath = rolePath(user.role, "settings");
   const supportPath = rolePath(user.role, "support");
@@ -70,7 +70,7 @@ export function TopBar({ user }: TopBarProps) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="relative glass glass-hover h-9 w-9 grid place-items-center rounded-full">
+              <button className="relative glass glass-hover h-9 w-9 grid place-items-center rounded-full" aria-label="Open notifications">
                 <Bell className="h-4 w-4" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 grid place-items-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
@@ -91,13 +91,17 @@ export function TopBar({ user }: TopBarProps) {
                     <DropdownMenuItem
                       key={n.id}
                       className={cn(
-                        "flex flex-col items-start gap-1 p-3 cursor-pointer",
+                        "flex flex-col items-start gap-1 p-3 cursor-pointer whitespace-normal",
                         !n.isRead && "bg-primary/5"
                       )}
-                      onClick={() => markRead(n.id)}
+                      onClick={() => {
+                        markRead(n.id);
+                        const target = notificationTarget(n, user.role);
+                        if (target) router.push(target);
+                      }}
                     >
-                      <div className="text-xs font-bold">{n.title}</div>
-                      <div className="text-[11px] text-muted-foreground line-clamp-2">{n.message}</div>
+                      <div className="text-xs font-bold break-words">{n.title}</div>
+                      <div className="text-[11px] text-muted-foreground break-words leading-relaxed">{n.message}</div>
                       <div className="text-[9px] text-muted-foreground/60">{formatDistanceToNow(new Date(n.createdAt))} ago</div>
                     </DropdownMenuItem>
                   ))
@@ -143,4 +147,15 @@ function rolePath(role: string | undefined, area: "settings" | "support") {
   if (role === "DOCTOR") return `/doctor/${area}`;
   if (role === "RECEPTION") return `/reception/${area}`;
   return `/patient/${area}`;
+}
+
+function notificationTarget(notification: { type?: string; link?: string | null }, role: string | undefined) {
+  if (notification.type === "NEW_MESSAGE" || notification.link?.includes("/support")) {
+    const query = notification.link?.includes("?")
+      ? notification.link.slice(notification.link.indexOf("?"))
+      : "";
+    return `${rolePath(role, "support")}${query}`;
+  }
+
+  return notification.link || "";
 }

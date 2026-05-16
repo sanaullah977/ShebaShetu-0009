@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import {
-  Users2, Search, ArrowRightLeft,
+  Users2, Search,
   MoreVertical, ChevronUp, ChevronDown,
-  Trash2, Filter, User, BellRing
+  Trash2, Filter, User, BellRing, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,27 +24,40 @@ import {
 
 interface QueueManagerProps {
   queue: any[];
+  initialSearch?: string;
   onQueueChange?: (queue: any[]) => void;
 }
 
-export function QueueManager({ queue, onQueueChange }: QueueManagerProps) {
-  const [search, setSearch] = useState("");
+export function QueueManager({ queue, initialSearch = "", onQueueChange }: QueueManagerProps) {
+  const [search, setSearch] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
   const [pendingAction, startTransition] = useTransition();
 
-  const filtered = queue.filter(apt => {
-    const s = search.toLowerCase();
-    const matchesSearch =
-      apt.patient.user.name?.toLowerCase().includes(s) ||
-      apt.patient.user.email?.toLowerCase().includes(s) ||
-      apt.queueToken?.tokenNumber.toLowerCase().includes(s) ||
-      apt.doctor.user.name?.toLowerCase().includes(s) ||
-      apt.doctor.specialization?.toLowerCase().includes(s);
+  useEffect(() => {
+    setSearch(initialSearch);
+  }, [initialSearch]);
+
+  const filtered = useMemo(() => queue.filter(apt => {
+    const s = search.trim().toLowerCase();
+    const haystack = [
+      apt.id,
+      apt.queueToken?.tokenNumber,
+      apt.queueToken?.status,
+      apt.status,
+      apt.patient?.id,
+      apt.patient?.user?.name,
+      apt.patient?.user?.email,
+      apt.patient?.user?.phone,
+      apt.doctor?.user?.name,
+      apt.doctor?.specialization,
+      apt.department?.name,
+    ].filter(Boolean).join(" ").toLowerCase();
+    const matchesSearch = !s || haystack.includes(s);
 
     const matchesStatus = statusFilter ? apt.queueToken?.status === statusFilter : true;
     return matchesSearch && matchesStatus;
-  });
+  }), [queue, search, statusFilter]);
 
   const applyQueueResult = (res: any, successMessage: string) => {
     if (res.success) {
@@ -93,11 +106,21 @@ export function QueueManager({ queue, onQueueChange }: QueueManagerProps) {
         <div className="relative group flex-1 max-w-2xl">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <input
-            placeholder="Search by name, token, doctor or specialization..."
+            placeholder="Search token, patient, phone, doctor, department, status..."
             className="w-full bg-background/50 border border-border/40 rounded-2xl pl-11 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all shadow-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+              aria-label="Clear queue search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
           <Button
@@ -129,14 +152,6 @@ export function QueueManager({ queue, onQueueChange }: QueueManagerProps) {
               {s.replace('_', ' ')}
             </Button>
           ))}
-          <Button
-            size="sm"
-            disabled={pendingAction}
-            className="rounded-xl text-xs h-9 px-4 font-semibold whitespace-nowrap bg-primary text-primary-foreground shadow-glow"
-            onClick={handleCallNext}
-          >
-            Call Next
-          </Button>
         </div>
       </div>
 

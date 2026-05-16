@@ -12,27 +12,28 @@ import { cn } from "@/lib/utils";
 type Item = { to: string; label: string; icon: typeof Home };
 
 const PATIENT: Item[] = [
-  { to: "/patient/dashboard",  label: "Dashboard",     icon: Home },
-  { to: "/patient/symptoms",   label: "AI Symptom",    icon: Sparkles },
-  { to: "/patient/booking",    label: "Book Visit",    icon: CalendarDays },
-  { to: "/patient/live-queue", label: "Live Queue",    icon: Activity },
+  { to: "/patient/dashboard", label: "Dashboard", icon: Home },
+  { to: "/patient/symptoms", label: "AI Symptom", icon: Sparkles },
+  { to: "/patient/booking", label: "Book Visit", icon: CalendarDays },
+  { to: "/patient/live-queue", label: "Live Queue", icon: Activity },
   { to: "/patient/appointments", label: "Appointments", icon: ListChecks },
-  { to: "/patient/reports",    label: "Report Vault",  icon: FolderHeart },
+  { to: "/patient/reports", label: "Report Vault", icon: FolderHeart },
 ];
 
 const RECEPTION: Item[] = [
-  { to: "/reception/dashboard", label: "Dashboard",     icon: Home },
-  { to: "/reception/queue",     label: "Queue Manager", icon: Users2 },
-  { to: "/reception/schedule",  label: "Doctor Schedule", icon: CalendarRange },
+  { to: "/reception/dashboard", label: "Dashboard", icon: Home },
+  { to: "/reception/queue", label: "Queue Manager", icon: Users2 },
+  { to: "/reception/schedule", label: "Doctor Schedule", icon: CalendarRange },
 ];
 
 const DOCTOR: Item[] = [
-  { to: "/doctor/dashboard",    label: "Today's List",  icon: ClipboardList },
-  { to: "/doctor/schedule",     label: "Schedule",      icon: CalendarDays },
+  { to: "/doctor/dashboard", label: "Today's List", icon: ClipboardList },
+  { to: "/doctor/schedule", label: "Schedule", icon: CalendarDays },
 ];
 
 const ADMIN: Item[] = [
   { to: "/admin/support", label: "Support Desk", icon: MessageSquare },
+  { to: "/admin/users", label: "User Management", icon: Users2 },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -90,7 +91,7 @@ export function Sidebar({ role }: SidebarProps) {
         <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
           Reach our 24/7 hospital coordination desk for any visit.
         </p>
-        <Link 
+        <Link
           href={roleSupportPath(role)}
           className="w-full block"
         >
