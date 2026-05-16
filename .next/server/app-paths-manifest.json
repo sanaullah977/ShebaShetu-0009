@@ -1,9 +1,0 @@
-{
-  "/api/notifications/route": "app/api/notifications/route.js",
-  "/(dashboard)/doctor/schedule/page": "app/(dashboard)/doctor/schedule/page.js",
-  "/(dashboard)/patient/dashboard/page": "app/(dashboard)/patient/dashboard/page.js",
-  "/(dashboard)/patient/symptoms/page": "app/(dashboard)/patient/symptoms/page.js",
-  "/(dashboard)/patient/appointments/page": "app/(dashboard)/patient/appointments/page.js",
-  "/(dashboard)/patient/booking/page": "app/(dashboard)/patient/booking/page.js",
-  "/(dashboard)/patient/live-queue/page": "app/(dashboard)/patient/live-queue/page.js"
-}
