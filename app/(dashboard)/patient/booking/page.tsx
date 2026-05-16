@@ -13,7 +13,7 @@ export default async function BookingPage({
 
   const { dept } = await searchParams;
 
-  const doctors = await getBookingOptions();
+  const bookingOptions = await getBookingOptions();
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-10">
@@ -27,7 +27,11 @@ export default async function BookingPage({
         </div>
       </div>
 
-      <BookingForm doctors={doctors} initialSpecialization={dept} />
+      <BookingForm
+        doctors={bookingOptions.doctors}
+        departments={bookingOptions.departments}
+        initialDepartment={dept}
+      />
     </div>
   );
 }

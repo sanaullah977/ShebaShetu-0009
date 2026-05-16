@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { AppointmentStatus, QueueStatus } from "@prisma/client";
+import { AppointmentStatus, Prisma, QueueStatus } from "@prisma/client";
 import { endOfDay, startOfDay } from "date-fns";
 
 type ReceptionScope = {
@@ -162,6 +162,9 @@ export async function checkInPatient(appointmentId: string) {
     };
   } catch (error) {
     console.error("Check-in error:", error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { success: false, error: "Patient is already checked in for this appointment" };
+    }
     return { success: false, error: "Failed to check in patient" };
   }
 }
@@ -180,6 +183,9 @@ export async function updateQueueStatus(tokenId: string, status: QueueStatus) {
       if (!token) return { success: false as const, error: "Queue token not found" };
       if (token.appointment.hospitalId !== scope.hospitalId) {
         return { success: false as const, error: "Queue token is outside your assigned hospital" };
+      }
+      if (token.status === status) {
+        return { success: true as const, unchanged: true };
       }
 
       const now = new Date();
@@ -242,10 +248,13 @@ export async function callNextPatient() {
 
       if (!token) return { success: false as const, error: "No waiting patient found" };
 
-      await tx.queueToken.update({
-        where: { id: token.id },
+      const claimed = await tx.queueToken.updateMany({
+        where: { id: token.id, status: QueueStatus.WAITING },
         data: { status: QueueStatus.CALLED, calledAt: new Date() },
       });
+      if (claimed.count !== 1) {
+        return { success: false as const, error: "The next patient was already called. Please refresh the queue." };
+      }
       await tx.appointment.update({
         where: { id: token.appointment.id },
         data: { status: AppointmentStatus.CHECKED_IN },

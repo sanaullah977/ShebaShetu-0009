@@ -43,6 +43,9 @@ export async function getBookingOptions() {
           id: true,
           name: true,
           hospitalId: true,
+          hospital: {
+            select: { id: true, name: true, address: true },
+          },
         }
       },
       schedules: {
@@ -67,7 +70,7 @@ export async function getBookingOptions() {
     }
   });
 
-  return doctors.map((doctor) => ({
+  const mappedDoctors = doctors.map((doctor) => ({
     id: doctor.id,
     user: doctor.user,
     specialization: doctor.specialization,
@@ -76,7 +79,8 @@ export async function getBookingOptions() {
     departments: doctor.departments.map((department) => ({
       id: department.id,
       name: department.name,
-      hospital: department.hospitalId ? hospitalById.get(department.hospitalId) ?? null : null,
+      hospitalId: department.hospitalId,
+      hospital: department.hospital ?? (department.hospitalId ? hospitalById.get(department.hospitalId) ?? null : null),
     })),
     schedules: doctor.schedules.map((slot) => ({
       id: slot.id,
@@ -88,6 +92,42 @@ export async function getBookingOptions() {
       hospital: hospitalById.get(slot.hospitalId) ?? null,
     }))
   }));
+
+  const departmentMap = new Map<string, {
+    id: string;
+    name: string;
+    hospitalId: string | null;
+    hospital: { id: string; name: string; address: string } | null;
+    doctorCount: number;
+    availableSlotCount: number;
+  }>();
+
+  for (const doctor of mappedDoctors) {
+    for (const department of doctor.departments) {
+      if (!department.hospitalId || !department.hospital) continue;
+
+      const availableSlotCount = doctor.schedules.filter((slot) => (
+        slot.hospitalId === department.hospitalId && slot.isAvailable && !slot.isBooked
+      )).length;
+
+      if (availableSlotCount === 0) continue;
+
+      const current = departmentMap.get(department.id);
+      departmentMap.set(department.id, {
+        id: department.id,
+        name: department.name,
+        hospitalId: department.hospitalId,
+        hospital: department.hospital,
+        doctorCount: (current?.doctorCount ?? 0) + 1,
+        availableSlotCount: (current?.availableSlotCount ?? 0) + availableSlotCount,
+      });
+    }
+  }
+
+  return {
+    departments: Array.from(departmentMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    doctors: mappedDoctors,
+  };
 }
 
 // Cache patient ID to avoid redundant lookups
@@ -117,6 +157,7 @@ export async function getUpcomingAppointments(userId: string, limit = 10) {
         }
       },
       department: { select: { name: true } },
+      hospital: { select: { name: true } },
       queueToken: { select: { tokenNumber: true, position: true } }
     },
     orderBy: { scheduledAt: 'asc' },
@@ -137,6 +178,7 @@ export async function getAllAppointments(userId: string) {
         }
       },
       department: { select: { name: true } },
+      hospital: { select: { name: true } },
       queueToken: { select: { tokenNumber: true, position: true } }
     },
     orderBy: { scheduledAt: "desc" }
@@ -235,33 +277,27 @@ export async function getPatientReports(userId: string, search?: string) {
         { fileName: { contains: search, mode: 'insensitive' } }
       ] : undefined
     },
+    include: {
+      appointments: {
+        include: {
+          doctor: {
+            include: {
+              user: { select: { name: true } },
+            },
+          },
+          department: { select: { name: true } },
+        },
+      },
+    },
     orderBy: { uploadedAt: 'desc' }
   });
 }
 
-export async function getAllAppointments(userId: string) {
-  const patientId = await getPatientId(userId);
-  if (!patientId) return [];
-
-  return await prisma.appointment.findMany({
-    where: { patientId },
-    include: {
-      doctor: {
-        include: {
-          user: { select: { name: true, image: true } }
-        }
-      },
-      department: { select: { name: true } },
-      queueToken: true
-    },
-    orderBy: { scheduledAt: 'desc' }
-  });
-}
 
 export async function getAvailableSlots(doctorId: string, date: Date) {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
-  
+
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
 

@@ -45,6 +45,34 @@ export async function replyToSupportTicket(data: z.infer<typeof replySchema>) {
 
     if (!ticket) return { success: false, error: "Ticket not found" };
 
+    const duplicateWindow = new Date(Date.now() - 10_000);
+    const duplicateReply = await prisma.supportTicketReply.findFirst({
+      where: {
+        ticketId: ticket.id,
+        senderId,
+        message: parsed.data.message,
+        createdAt: { gte: duplicateWindow },
+      },
+      include: {
+        sender: { select: { id: true, name: true, role: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (duplicateReply) {
+      return {
+        success: true,
+        status: "IN_PROGRESS",
+        updatedAt: duplicateReply.createdAt.toISOString(),
+        reply: {
+          id: duplicateReply.id,
+          message: duplicateReply.message,
+          createdAt: duplicateReply.createdAt.toISOString(),
+          sender: duplicateReply.sender,
+        },
+      };
+    }
+
     const reply = await prisma.supportTicketReply.create({
       data: {
         ticketId: ticket.id,
@@ -66,9 +94,9 @@ export async function replyToSupportTicket(data: z.infer<typeof replySchema>) {
       data: {
         userId: ticket.userId,
         type: "NEW_MESSAGE",
-        title: "Support Reply",
-        message: "The support team replied to your ticket.",
-        link: getSupportPath(ticket.user.role),
+        title: "Support replied to your ticket",
+        message: "Support replied to your ticket. Open Contact Support to read the reply.",
+        link: `${getSupportPath(ticket.user.role)}?ticketId=${ticket.id}`,
       },
     });
 

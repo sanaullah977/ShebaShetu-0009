@@ -22,6 +22,7 @@ export function QueueContent({ queue, pendingAppointments, movements }: QueueCon
   const [view, setView] = useState<"live" | "movements">("live");
   const [queueItems, setQueueItems] = useState(queue);
   const [pendingItems, setPendingItems] = useState(pendingAppointments);
+  const initialSearch = searchParams.get("search") || "";
 
   useEffect(() => {
     setQueueItems(queue);
@@ -93,7 +94,7 @@ export function QueueContent({ queue, pendingAppointments, movements }: QueueCon
 
       <div className="min-h-[60vh]">
         {view === "live" ? (
-          <QueueManager queue={queueItems} onQueueChange={setQueueItems} />
+          <QueueManager queue={queueItems} initialSearch={initialSearch} onQueueChange={setQueueItems} />
         ) : (
           <QueueMovements movements={movements} />
         )}

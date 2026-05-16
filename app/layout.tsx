@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "./providers";
 import { SearchHandler } from "@/components/SearchHandler";
+import UnregisterServiceWorkers from "@/components/UnregisterServiceWorkers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,6 +23,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-background antialiased selection:bg-primary/20`}>
         <Providers>
           <SearchHandler />
+          <UnregisterServiceWorkers />
           {children}
           <Toaster position="top-center" richColors />
         </Providers>

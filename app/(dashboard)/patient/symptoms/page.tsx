@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, ArrowRight, Stethoscope, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { parseJsonResponse } from "@/lib/http";
 
 function SymptomsContent() {
   const searchParams = useSearchParams();
@@ -24,7 +25,7 @@ function SymptomsContent() {
         body: JSON.stringify({ symptoms }),
         headers: { "Content-Type": "application/json" },
       });
-      const result = await res.json();
+      const result = await parseJsonResponse<any>(res, "AI Analysis failed. Please try again.");
       if (result.success) {
         setSuggestion(result.data);
       } else {

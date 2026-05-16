@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GlassCard } from "@/components/GlassCard";
-import { Shield, Bell, Loader2, Camera, Check, KeyRound } from "lucide-react";
+import { Shield, Bell, Loader2, Camera, Check, KeyRound, Building2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { updateProfile, updatePreferences, updatePassword } from "@/app/actions/settings";
 import { toast } from "sonner";
@@ -38,7 +38,15 @@ type SettingsUser = {
     address?: string | null;
     emergencyContact?: string | null;
   } | null;
-  receptionProfile?: unknown;
+  receptionProfile?: {
+    hospitalId?: string | null;
+    hospital?: {
+      id: string;
+      name: string;
+      address?: string | null;
+      phone?: string | null;
+    } | null;
+  } | null;
 };
 
 interface SettingsFormProps {
@@ -66,6 +74,7 @@ type ProfileState = {
 
 export function SettingsForm({ user, preferences }: SettingsFormProps) {
   const [loading, setLoading] = useState(false);
+  const [displayUser, setDisplayUser] = useState(user);
   const [prefs, setPrefs] = useState(preferences);
   const [profile, setProfile] = useState(() => toProfileState(user));
   const [passwordModal, setPasswordModal] = useState(false);
@@ -77,6 +86,7 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
   });
 
   useEffect(() => {
+    setDisplayUser(user);
     setProfile(toProfileState(user));
   }, [user]);
 
@@ -85,11 +95,12 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
   }, [preferences]);
 
   const roleLabel = useMemo(() => {
-    if (user.role === "DOCTOR" || user.doctorProfile) return "Doctor";
-    if (user.role === "PATIENT" || user.patientProfile) return "Patient";
-    if (user.role === "RECEPTION" || user.receptionProfile) return "Receptionist";
-    return user.role || "User";
-  }, [user]);
+    if (displayUser.role === "DOCTOR" || displayUser.doctorProfile) return "Doctor";
+    if (displayUser.role === "PATIENT" || displayUser.patientProfile) return "Patient";
+    if (displayUser.role === "RECEPTION" || displayUser.receptionProfile) return "Receptionist";
+    return displayUser.role || "User";
+  }, [displayUser]);
+  const assignedHospital = displayUser.receptionProfile?.hospital;
 
   const handlePreferenceToggle = async (key: "emailAlerts" | "queueUpdates") => {
     const previous = prefs;
@@ -140,7 +151,10 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
 
     setLoading(false);
     if (res.success) {
-      if (res.user) setProfile(toProfileState(res.user as SettingsUser));
+      if (res.user) {
+        setDisplayUser(res.user as SettingsUser);
+        setProfile(toProfileState(res.user as SettingsUser));
+      }
       toast.success("Profile updated");
     } else {
       toast.error(res.error);
@@ -210,7 +224,7 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
               <Input value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: event.target.value })} className="h-12 rounded-xl bg-background/50 border-border/40" placeholder="+880..." />
             </Field>
 
-            {(user.role === "DOCTOR" || user.doctorProfile) && (
+            {(displayUser.role === "DOCTOR" || displayUser.doctorProfile) && (
               <>
                 <Field label="Specialization">
                   <Input value={profile.specialization} onChange={(event) => setProfile({ ...profile, specialization: event.target.value })} className="h-12 rounded-xl bg-background/50 border-border/40" required />
@@ -224,7 +238,7 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
               </>
             )}
 
-            {(user.role === "PATIENT" || user.patientProfile) && (
+            {(displayUser.role === "PATIENT" || displayUser.patientProfile) && (
               <>
                 <Field label="Gender">
                   <select value={profile.gender} onChange={(event) => setProfile({ ...profile, gender: event.target.value })} className="h-12 rounded-xl bg-background/50 border border-border/40 px-3 text-sm">
@@ -252,6 +266,37 @@ export function SettingsForm({ user, preferences }: SettingsFormProps) {
               </>
             )}
           </div>
+
+          {(displayUser.role === "RECEPTION" || displayUser.receptionProfile) && (
+            <div className="rounded-2xl border border-border/40 bg-background/30 p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                <Building2 className="h-4 w-4 text-primary" />
+                Assigned Hospital
+              </div>
+              {assignedHospital ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl bg-background/40 border border-border/30 p-3">
+                    <div className="text-[9px] uppercase font-black tracking-widest text-muted-foreground">Hospital</div>
+                    <div className="mt-1 text-sm font-bold">{assignedHospital.name}</div>
+                  </div>
+                  <div className="rounded-xl bg-background/40 border border-border/30 p-3">
+                    <div className="text-[9px] uppercase font-black tracking-widest text-muted-foreground">Address</div>
+                    <div className="mt-1 text-sm font-bold flex items-start gap-1.5">
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      {assignedHospital.address || "Address not provided"}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border/50 p-4 text-sm text-muted-foreground">
+                  No hospital is assigned to this receptionist profile yet. An admin can assign one from user management.
+                </div>
+              )}
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Hospital assignment is read-only for receptionists and controls queue/check-in access.
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-end pt-4">
             <Button disabled={loading} className="h-12 px-8 rounded-xl bg-primary text-primary-foreground shadow-glow font-bold transition-all active:scale-95">

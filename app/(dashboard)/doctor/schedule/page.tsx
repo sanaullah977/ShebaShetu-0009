@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { AlertCircle } from "lucide-react";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { ScheduleManager } from "@/components/doctor/ScheduleManager";
@@ -44,38 +45,6 @@ export default async function DoctorSchedulePage() {
 
   const hospitalId = doctor.departments[0]?.hospitalId;
   const hasRoom = !!doctor.roomNumber && doctor.roomNumber.trim() !== "";
-
-  const hospitalIds = Array.from(new Set([
-    ...doctor.departments.map((department) => department.hospitalId).filter(Boolean),
-    ...doctor.schedules.map((slot) => slot.hospitalId).filter(Boolean),
-  ])) as string[];
-
-  const hospitalRecords = hospitalIds.length > 0 ? await prisma.hospital.findMany({
-    where: { id: { in: hospitalIds } },
-    select: { id: true, name: true, address: true }
-  }) : [];
-
-  const hospitalById = new Map(hospitalRecords.map((hospital) => [hospital.id, hospital]));
-
-  const hospitals = Array.from(
-    new Map(
-      doctor.departments
-        .map((department) => department.hospitalId ? hospitalById.get(department.hospitalId) : null)
-        .filter(Boolean)
-        .map((hospital) => [hospital!.id, hospital!])
-    ).values()
-  );
-
-  const slots = doctor.schedules.map((slot) => ({
-    id: slot.id,
-    doctorId: slot.doctorId,
-    hospitalId: slot.hospitalId,
-    startTime: slot.startTime.toISOString(),
-    endTime: slot.endTime.toISOString(),
-    isAvailable: slot.isAvailable,
-    isBooked: slot.isBooked,
-    hospital: hospitalById.get(slot.hospitalId) ?? null,
-  }));
 
   const hospitalIds = Array.from(new Set([
     ...doctor.departments.map((department) => department.hospitalId).filter(Boolean),

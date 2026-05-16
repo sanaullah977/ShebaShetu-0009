@@ -22,7 +22,11 @@ export async function bookAppointment(formData: FormData) {
     }
 
     const userId = (session.user as any).id;
-    
+    const role = (session.user as any).role as string | undefined;
+    if (role !== "PATIENT") {
+      return { success: false, error: "Only patients can book appointments." };
+    }
+
     // Fetch and verify patient profile
     const patient = await prisma.patientProfile.findUnique({
       where: { userId }
@@ -43,10 +47,10 @@ export async function bookAppointment(formData: FormData) {
     const validated = bookingSchema.safeParse(rawData);
 
     if (!validated.success) {
-      return { 
-        success: false, 
-        error: "Invalid data", 
-        details: validated.error.flatten().fieldErrors 
+      return {
+        success: false,
+        error: "Invalid data",
+        details: validated.error.flatten().fieldErrors
       };
     }
 
@@ -57,20 +61,15 @@ export async function bookAppointment(formData: FormData) {
       include: {
         doctor: {
           include: {
-            departments: { select: { id: true } },
+            departments: { select: { id: true, hospitalId: true, name: true } },
           }
         },
       }
-    } else {
-      // Fallback for non-slot based booking (legacy or emergency)
-      const existingAppointment = await prisma.appointment.findFirst({
-        where: {
-          doctorId,
-          scheduledAt: new Date(scheduledAt),
-          status: { not: AppointmentStatus.CANCELLED }
-        }
-      });
+    });
 
+    if (!slot) {
+      return { success: false, error: "Selected slot not found." };
+    }
     if (!slot || !slot.isAvailable || slot.isBooked) {
       return { success: false, error: "This slot is no longer available. Please choose another time." };
     }
@@ -79,8 +78,15 @@ export async function bookAppointment(formData: FormData) {
       return { success: false, error: "Selected slot does not belong to this doctor." };
     }
 
-    if (!slot.doctor.departments.some((department) => department.id === departmentId)) {
+    const selectedDepartment = slot.doctor.departments.find((department) => department.id === departmentId);
+    if (!selectedDepartment) {
       return { success: false, error: "Selected doctor is not assigned to this department." };
+    }
+    if (selectedDepartment.hospitalId && selectedDepartment.hospitalId !== slot.hospitalId) {
+      return {
+        success: false,
+        error: `${selectedDepartment.name} is not available at the selected slot's hospital. Please choose a matching slot.`,
+      };
     }
 
     const hospital = await prisma.hospital.findUnique({
@@ -90,6 +96,18 @@ export async function bookAppointment(formData: FormData) {
 
     if (!hospital) {
       return { success: false, error: "This slot is linked to an unavailable hospital. Please choose another slot." };
+    }
+
+    const existingAppointmentForSlot = await prisma.appointment.findUnique({
+      where: { scheduleSlotId },
+      select: { patientId: true },
+    });
+
+    if (existingAppointmentForSlot) {
+      if (existingAppointmentForSlot.patientId === patient.id) {
+        return { success: false, error: "You already have an appointment for this slot." };
+      }
+      return { success: false, error: "This slot is no longer available. Please choose another time." };
     }
 
     const claimedSlot = await prisma.scheduleSlot.updateMany({
@@ -122,10 +140,16 @@ export async function bookAppointment(formData: FormData) {
         }
       });
     } catch (error) {
-      await prisma.scheduleSlot.update({
-        where: { id: scheduleSlotId },
-        data: { isBooked: false },
+      const persistedAppointment = await prisma.appointment.findUnique({
+        where: { scheduleSlotId },
+        select: { id: true },
       });
+      if (!persistedAppointment) {
+        await prisma.scheduleSlot.update({
+          where: { id: scheduleSlotId },
+          data: { isBooked: false },
+        });
+      }
       throw error;
     }
 

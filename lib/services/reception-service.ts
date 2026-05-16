@@ -71,6 +71,7 @@ export async function getRecentCheckIns(limit = 5, hospitalId?: string | null) {
     include: {
       patient: { include: { user: true } },
       doctor: { include: { user: true } },
+      department: true,
       queueToken: true,
     },
     orderBy: { updatedAt: "desc" },
@@ -137,6 +138,7 @@ export async function getFullQueue(hospitalId?: string | null) {
     include: {
       patient: { include: { user: true } },
       doctor: { include: { user: true } },
+      department: true,
       queueToken: true,
     },
     orderBy: {

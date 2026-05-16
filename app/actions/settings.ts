@@ -90,13 +90,17 @@ export async function updateProfile(data: z.infer<typeof profileSchema>) {
           }
         },
         patientProfile: true,
-        receptionProfile: true,
+        receptionProfile: {
+          select: {
+            hospitalId: true,
+            hospital: { select: { id: true, name: true, address: true, phone: true } },
+          }
+        },
       }
     });
     
     revalidatePath("/patient/settings");
     revalidatePath("/doctor/settings");
-    revalidatePath("/patient/settings");
     revalidatePath("/reception/settings");
     revalidatePath("/patient/dashboard");
     revalidatePath("/doctor/dashboard");
@@ -205,6 +209,33 @@ export async function createSupportTicket(subject: string, message: string) {
 
   try {
     const submitterName = session.user.name || "A user";
+    const duplicateWindow = new Date(Date.now() - 10_000);
+    const duplicateTicket = await prisma.supportTicket.findFirst({
+      where: {
+        userId: (session.user as any).id,
+        subject: input.data.subject,
+        message: input.data.message,
+        createdAt: { gte: duplicateWindow },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (duplicateTicket) {
+      return {
+        success: true,
+        ticket: {
+          id: duplicateTicket.id,
+          subject: duplicateTicket.subject,
+          message: duplicateTicket.message,
+          status: duplicateTicket.status,
+          priority: duplicateTicket.priority,
+          category: duplicateTicket.category,
+          createdAt: duplicateTicket.createdAt.toISOString(),
+          updatedAt: duplicateTicket.updatedAt.toISOString(),
+        }
+      };
+    }
+
     const ticket = await prisma.supportTicket.create({
       data: {
         userId: (session.user as any).id,

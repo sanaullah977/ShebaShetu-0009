@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { parseJsonResponse } from "@/lib/http";
 
 export interface QueueStatusData {
   status: string;
@@ -17,8 +18,7 @@ export function useQueueStatus(appointmentId?: string) {
     queryFn: async () => {
       if (!appointmentId) return null;
       const res = await fetch(`/api/queue/${appointmentId}`);
-      if (!res.ok) throw new Error("Failed to fetch queue status");
-      const result = await res.json();
+      const result = await parseJsonResponse<{ data: QueueStatusData }>(res, "Failed to fetch queue status");
       return result.data as QueueStatusData;
     },
     enabled: !!appointmentId,

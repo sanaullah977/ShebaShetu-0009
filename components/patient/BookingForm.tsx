@@ -28,6 +28,7 @@ type BookingDoctor = {
   departments: Array<{
     id: string;
     name: string;
+    hospitalId?: string | null;
     hospital?: { id: string; name: string; address: string } | null;
   }>;
   schedules: Array<{
@@ -41,72 +42,81 @@ type BookingDoctor = {
   }>;
 };
 
+type BookingDepartment = {
+  id: string;
+  name: string;
+  hospitalId: string | null;
+  hospital: { id: string; name: string; address: string } | null;
+  doctorCount: number;
+  availableSlotCount: number;
+};
+
 interface BookingFormProps {
   doctors: BookingDoctor[];
-  initialSpecialization?: string;
+  departments: BookingDepartment[];
+  initialDepartment?: string;
 }
 
-export function BookingForm({ doctors, initialSpecialization }: BookingFormProps) {
+export function BookingForm({ doctors, departments, initialDepartment }: BookingFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const specializationOptions = useMemo(() => {
-    const values = new Set<string>();
-    doctors.forEach((doctor) => {
-      if (doctor.specialization?.trim()) values.add(doctor.specialization.trim());
-      doctor.departments.forEach((department) => {
-        if (department.name?.trim()) values.add(department.name.trim());
-      });
-    });
-    return Array.from(values).sort((a, b) => a.localeCompare(b));
-  }, [doctors]);
-
-  const initialOption = specializationOptions.find(
-    (option) => option.toLowerCase() === initialSpecialization?.toLowerCase()
+  const initialOption = departments.find(
+    (department) => (
+      department.id === initialDepartment ||
+      department.name.toLowerCase() === initialDepartment?.toLowerCase()
+    )
   );
 
-  const [selectedSpecialization, setSelectedSpecialization] = useState(initialOption || "");
+  const [selectedDeptId, setSelectedDeptId] = useState(initialOption?.id || "");
   const [selectedDocId, setSelectedDocId] = useState("");
-  const [selectedDeptId, setSelectedDeptId] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlotId, setSelectedSlotId] = useState("");
   const [symptoms, setSymptoms] = useState("");
 
+  const selectedDepartment = departments.find((department) => department.id === selectedDeptId);
+
   const filteredDoctors = useMemo(() => {
-    if (!selectedSpecialization) return [];
-    const needle = selectedSpecialization.toLowerCase();
+    if (!selectedDepartment) return [];
     return doctors.filter((doctor) => (
-      doctor.specialization?.toLowerCase() === needle ||
-      doctor.departments.some((department) => department.name.toLowerCase() === needle)
+      doctor.departments.some((department) => department.id === selectedDepartment.id) &&
+      doctor.schedules.some((slot) => (
+        slot.hospitalId === selectedDepartment.hospitalId &&
+        slot.isAvailable &&
+        !slot.isBooked
+      ))
     ));
-  }, [doctors, selectedSpecialization]);
+  }, [doctors, selectedDepartment]);
 
   const selectedDoctor = doctors.find((doctor) => doctor.id === selectedDocId);
   const selectedSlot = selectedDoctor?.schedules.find((slot) => slot.id === selectedSlotId);
   const availableDates = useMemo(() => {
-    if (!selectedDoctor) return [];
-    return Array.from(new Set(selectedDoctor.schedules.map((slot) => toDateInput(slot.startTime)))).sort();
-  }, [selectedDoctor]);
+    if (!selectedDoctor || !selectedDepartment) return [];
+    return Array.from(new Set(
+      selectedDoctor.schedules
+        .filter((slot) => slot.hospitalId === selectedDepartment.hospitalId && slot.isAvailable && !slot.isBooked)
+        .map((slot) => toDateInput(slot.startTime))
+    )).sort();
+  }, [selectedDoctor, selectedDepartment]);
 
   const dateSlots = useMemo(() => {
-    if (!selectedDoctor || !selectedDate) return [];
-    return selectedDoctor.schedules.filter((slot) => toDateInput(slot.startTime) === selectedDate);
-  }, [selectedDoctor, selectedDate]);
+    if (!selectedDoctor || !selectedDepartment || !selectedDate) return [];
+    return selectedDoctor.schedules.filter((slot) => (
+      slot.hospitalId === selectedDepartment.hospitalId &&
+      slot.isAvailable &&
+      !slot.isBooked &&
+      toDateInput(slot.startTime) === selectedDate
+    ));
+  }, [selectedDoctor, selectedDepartment, selectedDate]);
 
-  const handleSpecializationChange = (value: string) => {
-    setSelectedSpecialization(value);
+  const handleDepartmentChange = (value: string) => {
+    setSelectedDeptId(value);
     setSelectedDocId("");
-    setSelectedDeptId("");
     setSelectedDate("");
     setSelectedSlotId("");
   };
 
   const selectDoctor = (doctor: BookingDoctor) => {
-    const matchedDepartment = doctor.departments.find(
-      (department) => department.name.toLowerCase() === selectedSpecialization.toLowerCase()
-    );
-
     setSelectedDocId(doctor.id);
-    setSelectedDeptId(matchedDepartment?.id || doctor.departments[0]?.id || "");
     setSelectedDate("");
     setSelectedSlotId("");
   };
@@ -140,26 +150,33 @@ export function BookingForm({ doctors, initialSpecialization }: BookingFormProps
       <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-6">
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Specialization</Label>
-            <Select value={selectedSpecialization} onValueChange={handleSpecializationChange}>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Department</Label>
+            <Select value={selectedDeptId} onValueChange={handleDepartmentChange}>
               <SelectTrigger className="h-12 glass rounded-xl border-border/40 focus:ring-primary/20">
-                <SelectValue placeholder="Select specialization" />
+                <SelectValue placeholder="Select department" />
               </SelectTrigger>
               <SelectContent className="glass-strong border-border/40">
-                {specializationOptions.map((option) => (
-                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name} ({department.hospital?.name || "Hospital"})
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {specializationOptions.length === 0 && (
-              <p className="text-xs text-muted-foreground">No active doctor specializations are available right now.</p>
+            {departments.length === 0 && (
+              <p className="text-xs text-muted-foreground">No departments with active doctors and available slots are available right now.</p>
+            )}
+            {selectedDepartment && (
+              <p className="text-xs text-muted-foreground">
+                {selectedDepartment.doctorCount} doctor(s), {selectedDepartment.availableSlotCount} open slot(s) at {selectedDepartment.hospital?.name || "assigned hospital"}.
+              </p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Doctor</Label>
             <div className="space-y-2">
-              {selectedSpecialization ? (
+              {selectedDepartment ? (
                 filteredDoctors.length > 0 ? filteredDoctors.map((doctor) => {
                   const isSelected = selectedDocId === doctor.id;
                   return (
@@ -189,10 +206,10 @@ export function BookingForm({ doctors, initialSpecialization }: BookingFormProps
                     </button>
                   );
                 }) : (
-                  <EmptyState message="No doctors are currently available for this specialization." />
+                  <EmptyState message="No doctors currently have open slots for this department." />
                 )
               ) : (
-                <EmptyState message="Choose a specialization to see available doctors." />
+                <EmptyState message="Choose a department to see available doctors." />
               )}
             </div>
           </div>
@@ -205,14 +222,14 @@ export function BookingForm({ doctors, initialSpecialization }: BookingFormProps
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Selected Doctor</div>
                   <h3 className="text-xl font-black">{selectedDoctor.user.name || "Doctor"}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedDoctor.specialization || selectedSpecialization}</p>
+                  <p className="text-sm text-muted-foreground">{selectedDoctor.specialization || selectedDepartment?.name || "General Medicine"}</p>
                 </div>
                 <Stethoscope className="h-8 w-8 text-primary" />
               </div>
               <div className="grid sm:grid-cols-2 gap-3 mt-4 text-xs">
                 <Info label="Fee" value={selectedDoctor.consultationFee != null ? `${selectedDoctor.consultationFee} BDT` : "Not provided"} />
                 <Info label="Room" value={selectedDoctor.roomNumber || "Assigned on arrival"} />
-                <Info label="Hospitals" value={uniqueHospitals(selectedDoctor).join(", ") || "Not assigned"} />
+                <Info label="Hospital" value={selectedDepartment?.hospital?.name || uniqueHospitals(selectedDoctor).join(", ") || "Not assigned"} />
                 <Info label="Available Dates" value={availableDates.length ? `${availableDates.length} date(s)` : "No slots"} />
               </div>
             </GlassCard>
@@ -241,17 +258,10 @@ export function BookingForm({ doctors, initialSpecialization }: BookingFormProps
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Department</Label>
-              <Select value={selectedDeptId} onValueChange={setSelectedDeptId} disabled={!selectedDoctor || (selectedDoctor?.departments.length ?? 0) <= 1}>
-                <SelectTrigger className="h-12 glass rounded-xl border-border/40">
-                  <SelectValue placeholder="Department" />
-                </SelectTrigger>
-                <SelectContent className="glass-strong border-border/40">
-                  {selectedDoctor?.departments.map((department) => (
-                    <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Selected Department</Label>
+              <div className="h-12 glass rounded-xl border border-border/40 px-4 flex items-center text-sm font-semibold">
+                {selectedDepartment?.name || "Select a department first"}
+              </div>
             </div>
           </div>
 

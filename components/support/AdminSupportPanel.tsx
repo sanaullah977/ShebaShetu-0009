@@ -89,7 +89,9 @@ export function AdminSupportPanel({ initialTickets }: { initialTickets: AdminSup
                 ...ticket,
                 status: result.status || ticket.status,
                 updatedAt: result.updatedAt || ticket.updatedAt,
-                replies: [...ticket.replies, result.reply],
+                replies: ticket.replies.some((reply) => reply.id === result.reply.id)
+                  ? ticket.replies
+                  : [...ticket.replies, result.reply],
               }
             : ticket
         )));
